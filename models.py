@@ -16,7 +16,7 @@ class User(UserMixin, db.Model):
     def set_password(self, password):
         if not password:
             raise ValueError('Password cannot be empty')
-        self.password_hash = generate_password_hash(password, method='sha256')
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
 
     def check_password(self, password):
         if not password or not self.password_hash:

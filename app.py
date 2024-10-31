@@ -8,7 +8,6 @@ from routes.auth import auth_bp
 from routes.documents import documents_bp
 from routes.patients import patients_bp
 from routes.main import main_bp
-from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,59 +16,35 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 
-# Configure database with SSL
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    try:
-        # Parse the existing URL
-        parsed = urlparse(database_url)
-        
-        # Get existing query parameters
-        params = parse_qs(parsed.query) if parsed.query else {}
-        
-        # Update SSL parameters
-        ssl_params = {
-            'sslmode': ['require'],
-            'connect_timeout': ['30'],
-            'application_name': ['flask_app'],
-            'target_session_attrs': ['read-write'],
-            'keepalives': ['1'],
-            'keepalives_idle': ['30'],
-            'keepalives_interval': ['10'],
-            'keepalives_count': ['5']
+# Configure database
+try:
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        # Configure SQLAlchemy for PostgreSQL with SSL
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'connect_args': {
+                'sslmode': 'verify-ca',
+                'sslcert': None,
+                'sslkey': None,
+                'sslrootcert': '/etc/ssl/certs/ca-certificates.crt'
+            },
+            'pool_pre_ping': True,
+            'pool_size': 5,
+            'max_overflow': 2,
+            'pool_timeout': 30,
+            'pool_recycle': 1800
         }
-        params.update(ssl_params)
-        
-        # Create new query string
-        query = urlencode(params, doseq=True)
-        
-        # Reconstruct URL with new query parameters
-        new_url = urlunparse((
-            parsed.scheme,
-            parsed.netloc,
-            parsed.path,
-            parsed.params,
-            query,
-            parsed.fragment
-        ))
-        
-        app.config['SQLALCHEMY_DATABASE_URI'] = new_url
-        logger.info("PostgreSQL database URL configured with SSL parameters")
-    except Exception as e:
-        logger.error(f"Error configuring database URL: {str(e)}")
-        raise
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///app.db"
-    logger.warning("Using SQLite database (development mode)")
+        logger.info("Using PostgreSQL database with SSL configuration")
+    else:
+        app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///app.db"
+        logger.warning("Using SQLite database (development mode)")
+except Exception as e:
+    logger.error(f"Error configuring database: {str(e)}")
+    raise
 
+# Basic SQLAlchemy configuration
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_size': 10,
-    'pool_timeout': 30,
-    'pool_recycle': 1800,
-    'max_overflow': 15
-}
 
 # Initialize extensions
 try:
