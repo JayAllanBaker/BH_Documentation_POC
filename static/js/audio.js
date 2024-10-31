@@ -43,6 +43,7 @@ class AudioRecorder {
     
     async startRecording() {
         try {
+            console.log('Starting recording process');
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.mediaRecorder = new MediaRecorder(stream);
             
@@ -70,6 +71,7 @@ class AudioRecorder {
                 this.showStatus(`Recording in progress... ${this.formatTime(this.recordingTime)}`, 'info');
             }, 1000);
             
+            console.log('Recording started successfully');
         } catch (err) {
             console.error('Error accessing microphone:', err);
             this.showStatus('Error accessing microphone. Please ensure microphone permissions are granted.', 'danger');
@@ -78,6 +80,7 @@ class AudioRecorder {
     
     stopRecording() {
         if (this.mediaRecorder && this.isRecording) {
+            console.log('Stopping recording');
             if (this.recordingTimer) {
                 clearInterval(this.recordingTimer);
                 this.recordingTimer = null;
@@ -92,16 +95,18 @@ class AudioRecorder {
     
     async handleRecordingComplete() {
         try {
+            console.log('Starting recording upload process');
             const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
             const audioUrl = URL.createObjectURL(audioBlob);
             this.audioPlayer.src = audioUrl;
             
-            // Get document ID from URL
             const urlParams = new URLSearchParams(window.location.search);
             const docId = urlParams.get('id');
             
-            if (!docId) {
-                throw new Error('Invalid document ID. Please try again.');
+            console.log('Document ID from URL:', docId);
+            
+            if (!docId || docId === '0') {
+                throw new Error('Invalid document ID. Please save the document first.');
             }
             
             const formData = new FormData();
@@ -115,24 +120,30 @@ class AudioRecorder {
                 body: formData
             });
             
+            const result = await response.json();
+            
             if (!response.ok) {
-                const result = await response.json();
                 throw new Error(result.error || 'Upload failed');
             }
             
-            const result = await response.json();
-            console.log('Upload successful:', result.filename);
+            console.log('Upload successful:', result);
             this.showStatus('Recording uploaded successfully!', 'success');
             
             if (result.transcription) {
                 this.transcriptionDisplay.textContent = result.transcription;
-                await fetch('/api/generate-documentation', {
+                console.log('Transcription received:', result.transcription);
+                
+                const docResponse = await fetch('/api/generate-documentation', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ document_id: docId })
                 });
+                
+                if (!docResponse.ok) {
+                    throw new Error('Failed to generate documentation');
+                }
                 
                 window.location.reload();
             }
@@ -152,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     return response.blob();
                 }
+                throw new Error('Failed to fetch audio');
             })
             .then(blob => {
                 if (blob) {
@@ -159,6 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('audioPlayer').src = audioUrl;
                 }
             })
-            .catch(console.error);
+            .catch(error => {
+                console.error('Error fetching audio:', error);
+            });
     }
 });
