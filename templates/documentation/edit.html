@@ -84,7 +84,6 @@
                 {% if doc and doc.id %}
                 <button type="button" class="btn btn-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">Delete</button>
                 {% endif %}
-                <div id="saveStatus" class="alert mt-2 d-none"></div>
             </div>
         </form>
     </div>
@@ -124,7 +123,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
+                <form id="deleteForm" method="POST">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
@@ -189,8 +188,7 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
         }
     } catch (err) {
         console.error('Error deleting document:', err);
-        const errorMessage = `Error deleting document: ${err.message}`;
-        showStatus(errorMessage, 'danger');
+        showStatus(`Error deleting document: ${err.message}`, 'danger');
         modal.hide();
     } finally {
         deleteButton.disabled = false;
@@ -217,12 +215,7 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
             }
         });
         
-        let result;
-        try {
-            result = await response.json();
-        } catch (err) {
-            throw new Error('Invalid server response');
-        }
+        const result = await response.json();
         
         if (!response.ok) {
             throw new Error(result.error || `Failed to save document: ${response.status}`);
@@ -245,10 +238,16 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
         saveButton.disabled = false;
     }
 });
+
+// Add global error handler for unhandled promise rejections
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled promise rejection:', event.reason);
+    showStatus('An unexpected error occurred. Please try again.', 'danger');
+});
 </script>
 
 <script src="{{ url_for('static', filename='js/audio.js') }}" 
-    onerror="console.error('Failed to load audio.js'); showStatus('Error loading audio recording functionality', 'danger');">
+    onerror="showStatus('Error loading audio recording functionality', 'danger');">
 </script>
 
 {% endblock %}
