@@ -7,6 +7,7 @@ class AudioRecorder {
         this.startButton = document.getElementById('startRecording');
         this.stopButton = document.getElementById('stopRecording');
         this.audioPlayer = document.getElementById('audioPlayer');
+        this.transcriptionDisplay = document.getElementById('transcriptionDisplay');
         
         this.initializeButtons();
     }
@@ -51,9 +52,14 @@ class AudioRecorder {
         const audioUrl = URL.createObjectURL(audioBlob);
         this.audioPlayer.src = audioUrl;
         
+        // Get the current document ID from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const docId = urlParams.get('id');
+        
         // Upload the recording
         const formData = new FormData();
         formData.append('audio', audioBlob);
+        formData.append('document_id', docId);
         
         try {
             const response = await fetch('/api/upload-audio', {
@@ -67,6 +73,21 @@ class AudioRecorder {
             
             const result = await response.json();
             console.log('Upload successful:', result.filename);
+            
+            if (result.transcription) {
+                this.transcriptionDisplay.textContent = result.transcription;
+                // Generate documentation from transcription
+                await fetch('/api/generate-documentation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ document_id: docId })
+                });
+                
+                // Reload the page to show updated documentation
+                window.location.reload();
+            }
         } catch (err) {
             console.error('Error uploading audio:', err);
             alert('Error uploading recording. Please try again.');

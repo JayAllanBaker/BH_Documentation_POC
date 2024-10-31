@@ -15,6 +15,10 @@ author = "agent"
 task = "workflow.run"
 args = "Flask Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Create Test User"
+
 [[workflows.workflow]]
 name = "Flask Server"
 author = "agent"
@@ -27,11 +31,25 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "mkdir -p uploads/audio && python3 main.py"
+args = "pkill -f 'python3 main.py' || true && mkdir -p uploads/audio && python3 main.py"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Create Test User"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 create_test_user.py"
+
 [deployment]
-run = ["sh", "-c", "mkdir -p uploads/audio && python3 main.py"]
+run = ["sh", "-c", "pkill -f 'python3 main.py' || true && mkdir -p uploads/audio && python3 main.py"]
 
 [[ports]]
 localPort = 5000

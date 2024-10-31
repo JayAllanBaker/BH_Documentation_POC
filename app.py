@@ -1,7 +1,7 @@
 import os
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from sqlalchemy.orm import DeclarativeBase
 
 class Base(DeclarativeBase):
@@ -33,6 +33,12 @@ from routes.documentation import docs_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(audio_bp)
 app.register_blueprint(docs_bp)
+
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('documentation.list'))
+    return redirect(url_for('auth.login'))
 
 with app.app_context():
     import models

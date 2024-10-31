@@ -35,6 +35,43 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    TAMPER Documentation
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="tamper_time" class="form-label">Time</label>
+                        <textarea class="form-control" id="tamper_time" name="tamper_time" rows="2">{{ doc.tamper_time if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tamper_action" class="form-label">Action</label>
+                        <textarea class="form-control" id="tamper_action" name="tamper_action" rows="2">{{ doc.tamper_action if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tamper_medical_necessity" class="form-label">Medical Necessity</label>
+                        <textarea class="form-control" id="tamper_medical_necessity" name="tamper_medical_necessity" rows="2">{{ doc.tamper_medical_necessity if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tamper_plan" class="form-label">Plan</label>
+                        <textarea class="form-control" id="tamper_plan" name="tamper_plan" rows="2">{{ doc.tamper_plan if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tamper_education" class="form-label">Education</label>
+                        <textarea class="form-control" id="tamper_education" name="tamper_education" rows="2">{{ doc.tamper_education if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tamper_response" class="form-label">Response</label>
+                        <textarea class="form-control" id="tamper_response" name="tamper_response" rows="2">{{ doc.tamper_response if doc else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
             
             <div class="mb-3">
                 <label for="content" class="form-label">Additional Notes</label>
@@ -49,7 +86,7 @@
     </div>
     
     <div class="col-md-4">
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header">
                 Audio Recording
             </div>
@@ -59,6 +96,12 @@
                     <button id="stopRecording" class="btn btn-danger" disabled>Stop Recording</button>
                 </div>
                 <audio id="audioPlayer" controls class="w-100"></audio>
+                <div class="mt-3">
+                    <h6>Transcription:</h6>
+                    <div id="transcriptionDisplay" class="border rounded p-2 bg-dark">
+                        {{ doc.transcription if doc and doc.transcription else 'No transcription available' }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>

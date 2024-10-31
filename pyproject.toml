@@ -9,4 +9,8 @@ dependencies = [
     "flask-sqlalchemy>=3.1.1",
     "psycopg2-binary>=2.9.10",
     "flask-login>=0.6.3",
+    "ffmpeg-python>=0.2.0",
+    "openai-whisper>=20240930",
+    "torch>=2.5.1",
+    "werkzeug>=3.0.6",
 ]
