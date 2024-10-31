@@ -63,9 +63,9 @@
             <div class="modal-body">
                 Are you sure you want to delete <span id="deleteCount"></span>?
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" action="{{ url_for('documentation.bulk_delete') }}">
+            <div class="modal-footer d-flex justify-content-end">
+                <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" action="{{ url_for('documentation.bulk_delete') }}" class="m-0">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
