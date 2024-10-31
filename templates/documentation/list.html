@@ -17,6 +17,9 @@
     </div>
     <div class="col text-end">
         <a href="{{ url_for('documentation.edit', id=0) }}" class="btn btn-primary">New Document</a>
+        <button type="button" class="btn btn-danger" id="bulkDeleteBtn" disabled>
+            Delete Selected
+        </button>
     </div>
 </div>
 
@@ -26,6 +29,9 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll" class="form-check-input">
+                        </th>
                         <th>Title</th>
                         <th>Created</th>
                         <th>Status</th>
@@ -35,18 +41,18 @@
                 <tbody>
                     {% for doc in documents %}
                     <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input document-checkbox" 
+                                   value="{{ doc.id }}" data-title="{{ doc.title }}">
+                        </td>
                         <td>{{ doc.title }}</td>
                         <td>{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>{{ doc.status }}</td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i> Edit
-                                </a>
-                                <button type="button" class="btn btn-sm btn-outline-danger delete-btn" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </div>
+                            <a href="{{ url_for('documentation.edit', id=doc.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -94,12 +100,55 @@ function showStatus(message, type = 'info') {
     }
 }
 
-function confirmDelete(docId, docTitle) {
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    document.getElementById('documentTitle').textContent = docTitle;
-    document.getElementById('deleteForm').action = `/documents/${docId}/delete`;
-    modal.show();
+// Handle select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.getElementsByClassName('document-checkbox');
+    for (let checkbox of checkboxes) {
+        checkbox.checked = this.checked;
+    }
+    updateBulkDeleteButton();
+});
+
+// Handle individual checkboxes
+document.querySelectorAll('.document-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', updateBulkDeleteButton);
+});
+
+// Update bulk delete button state
+function updateBulkDeleteButton() {
+    const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    bulkDeleteBtn.disabled = checkedBoxes.length === 0;
 }
+
+// Handle bulk delete
+document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
+    const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+    const selectedDocs = Array.from(checkedBoxes).map(cb => ({
+        id: cb.value,
+        title: cb.dataset.title
+    }));
+    
+    if (selectedDocs.length === 0) return;
+    
+    const docTitles = selectedDocs.map(d => d.title).join('", "');
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    document.getElementById('documentTitle').innerHTML = 
+        selectedDocs.length === 1 ? docTitles : `${selectedDocs.length} selected documents`;
+    
+    // Update delete form to handle multiple documents
+    const deleteForm = document.getElementById('deleteForm');
+    deleteForm.innerHTML = '';
+    selectedDocs.forEach(doc => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'doc_ids[]';
+        input.value = doc.id;
+        deleteForm.appendChild(input);
+    });
+    
+    modal.show();
+});
 
 // Handle delete form submission
 document.getElementById('deleteForm').addEventListener('submit', async (e) => {
@@ -110,10 +159,11 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
     
     try {
         deleteButton.disabled = true;
-        showStatus('Deleting document...', 'info');
+        showStatus('Deleting document(s)...', 'info');
         
-        const response = await fetch(form.action, {
+        const response = await fetch(form.action || '/documents/0/delete', {
             method: 'POST',
+            body: new FormData(form),
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -122,21 +172,21 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
         const result = await response.json();
         
         if (!response.ok) {
-            throw new Error(result.error || `Failed to delete document: ${response.status}`);
+            throw new Error(result.error || `Failed to delete document(s): ${response.status}`);
         }
         
         if (result.success) {
             modal.hide();
-            showStatus('Document deleted successfully', 'success');
+            showStatus(result.message, 'success');
             setTimeout(() => {
                 window.location.reload();
             }, 1000);
         } else {
-            throw new Error(result.error || 'Failed to delete document');
+            throw new Error(result.error || 'Failed to delete document(s)');
         }
     } catch (err) {
-        console.error('Error deleting document:', err);
-        showStatus(`Error deleting document: ${err.message}`, 'danger');
+        console.error('Error deleting document(s):', err);
+        showStatus(`Error: ${err.message}`, 'danger');
         modal.hide();
     } finally {
         deleteButton.disabled = false;

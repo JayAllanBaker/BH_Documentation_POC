@@ -90,49 +90,55 @@ def edit(id):
 @login_required
 def delete(id):
     try:
+        # Handle bulk delete
+        doc_ids = request.form.getlist('doc_ids[]')
+        if doc_ids:
+            deleted_count = 0
+            for doc_id in doc_ids:
+                doc = Document.query.get_or_404(int(doc_id))
+                if doc.author_id != current_user.id:
+                    continue
+                    
+                if doc.recording_path:
+                    try:
+                        if os.path.exists(doc.recording_path):
+                            os.remove(doc.recording_path)
+                    except OSError as e:
+                        logger.error(f"Error deleting audio file: {str(e)}")
+                
+                db.session.delete(doc)
+                deleted_count += 1
+            
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{deleted_count} document(s) deleted successfully'
+            })
+        
+        # Handle single delete
         doc = Document.query.get_or_404(id)
-        
         if doc.author_id != current_user.id:
-            logger.warning(f"Unauthorized deletion attempt for document {id} by user {current_user.id}")
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'error': 'You do not have permission to delete this document'}), 403
-            flash('You do not have permission to delete this document')
-            return redirect(url_for('documentation.list'))
-        
-        # Delete associated audio file if it exists
+            return jsonify({'error': 'Unauthorized'}), 403
+            
         if doc.recording_path:
             try:
                 if os.path.exists(doc.recording_path):
                     os.remove(doc.recording_path)
             except OSError as e:
                 logger.error(f"Error deleting audio file: {str(e)}")
-                # Continue with document deletion even if audio file deletion fails
         
-        # Delete the document from database
         db.session.delete(doc)
         db.session.commit()
         
-        logger.info(f"Document {id} deleted successfully by user {current_user.id}")
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'success': True,
-                'message': 'Document deleted successfully'
-            })
-            
-        flash('Document deleted successfully')
-        return redirect(url_for('documentation.list'))
+        return jsonify({
+            'success': True,
+            'message': 'Document deleted successfully'
+        })
         
     except Exception as e:
-        logger.error(f"Error deleting document {id}: {str(e)}")
+        logger.error(f"Error deleting document(s): {str(e)}")
         db.session.rollback()
-        
-        error_message = 'An error occurred while deleting the document'
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'error': error_message,
-                'details': str(e)
-            }), 500
-            
-        flash(error_message)
-        return redirect(url_for('documentation.list'))
+        return jsonify({
+            'error': 'An error occurred while deleting the document(s)',
+            'details': str(e)
+        }), 500
