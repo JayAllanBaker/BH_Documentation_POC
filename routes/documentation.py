@@ -27,8 +27,14 @@ def edit(id):
             author_id=current_user.id
         )
         db.session.add(doc)
-        db.session.commit()
-        return redirect(url_for('documentation.edit', id=doc.id))
+        try:
+            db.session.commit()
+            return redirect(url_for('documentation.edit', id=doc.id))
+        except Exception as e:
+            logger.error(f"Error creating new document: {str(e)}")
+            db.session.rollback()
+            flash('Error creating new document')
+            return redirect(url_for('documentation.list'))
         
     doc = Document.query.get_or_404(id)
     if doc.author_id != current_user.id:
@@ -36,33 +42,45 @@ def edit(id):
         return redirect(url_for('documentation.list'))
         
     if request.method == 'POST':
-        doc.title = request.form['title']
-        doc.content = request.form['content']
-        # MEAT fields
-        doc.meat_monitor = request.form['meat_monitor']
-        doc.meat_evaluate = request.form['meat_evaluate']
-        doc.meat_assess = request.form['meat_assess']
-        doc.meat_treat = request.form['meat_treat']
-        # TAMPER fields
-        doc.tamper_time = request.form['tamper_time']
-        doc.tamper_action = request.form['tamper_action']
-        doc.tamper_medical_necessity = request.form['tamper_medical_necessity']
-        doc.tamper_plan = request.form['tamper_plan']
-        doc.tamper_education = request.form['tamper_education']
-        doc.tamper_response = request.form['tamper_response']
-        
         try:
+            doc.title = request.form['title']
+            doc.content = request.form['content']
+            # MEAT fields
+            doc.meat_monitor = request.form['meat_monitor']
+            doc.meat_evaluate = request.form['meat_evaluate']
+            doc.meat_assess = request.form['meat_assess']
+            doc.meat_treat = request.form['meat_treat']
+            # TAMPER fields
+            doc.tamper_time = request.form['tamper_time']
+            doc.tamper_action = request.form['tamper_action']
+            doc.tamper_medical_necessity = request.form['tamper_medical_necessity']
+            doc.tamper_plan = request.form['tamper_plan']
+            doc.tamper_education = request.form['tamper_education']
+            doc.tamper_response = request.form['tamper_response']
+            
             db.session.commit()
-            flash('Document updated successfully')
-            # Return JSON response for AJAX requests
+            
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': True, 'id': doc.id})
+                return jsonify({
+                    'success': True,
+                    'id': doc.id,
+                    'message': 'Document updated successfully'
+                })
+            
+            flash('Document updated successfully')
             return redirect(url_for('documentation.edit', id=doc.id))
+            
         except Exception as e:
             logger.error(f"Error updating document: {str(e)}")
             db.session.rollback()
+            
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'error': 'Failed to update document'}), 500
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to update document',
+                    'details': str(e)
+                }), 500
+                
             flash('Error updating document')
             return redirect(url_for('documentation.edit', id=doc.id))
         
