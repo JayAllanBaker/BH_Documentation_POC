@@ -14,4 +14,5 @@ dependencies = [
     "torch>=2.5.1",
     "werkzeug>=3.0.6",
     "openai>=1.53.0",
+    "flask-migrate>=4.0.7",
 ]

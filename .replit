@@ -19,6 +19,10 @@ args = "Flask Server"
 task = "workflow.run"
 args = "Create Test User"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Flask Migration"
+
 [[workflows.workflow]]
 name = "Flask Server"
 author = "agent"
@@ -47,6 +51,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 create_test_user.py"
+
+[[workflows.workflow]]
+name = "Flask Migration"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "export FLASK_APP=app.py && flask db init && flask db migrate -m 'Add FHIR Patient model' && flask db upgrade"
 
 [deployment]
 run = ["sh", "-c", "python3 main.py"]
