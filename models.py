@@ -13,6 +13,11 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, default='user')
     documents = db.relationship('Document', backref='author', lazy=True)
 
+    __table_args__ = (
+        db.Index('unique_email_when_not_null', 'email', unique=True, 
+                 postgresql_where=(email != None)),
+    )
+
     def set_password(self, password):
         if not password:
             raise ValueError('Password cannot be empty')
