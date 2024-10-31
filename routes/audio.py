@@ -1,12 +1,14 @@
 import os
 import whisper
 import logging
+import json
 from flask import Blueprint, request, jsonify, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import datetime
 from app import db
 from models import Document
+from utils.ai_analysis import analyze_transcription
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -130,12 +132,27 @@ def generate_documentation():
             logger.error("No transcription available")
             return jsonify({'error': 'No transcription available'}), 400
             
-        # TODO: Implement MEAT/TAMPER analysis using the transcription
+        # Analyze transcription using AI
+        logger.info(f"Analyzing transcription for document ID: {doc_id}")
+        analysis_result = analyze_transcription(document.transcription)
+        
+        if isinstance(analysis_result, str):
+            try:
+                analysis_result = json.loads(analysis_result)
+            except json.JSONDecodeError:
+                logger.error("Failed to parse AI analysis result")
+                return jsonify({'error': 'Failed to parse AI analysis result'}), 500
+        
+        # Update document with AI analysis results
+        for field, value in analysis_result.items():
+            if hasattr(document, field):
+                setattr(document, field, value)
+        
         document.content = document.transcription
         db.session.commit()
         logger.info(f"Documentation generated for document ID: {doc_id}")
         
-        return jsonify({'success': True}), 200
+        return jsonify({'success': True, 'analysis': analysis_result}), 200
         
     except Exception as e:
         logger.error(f"Unexpected error in generate_documentation: {str(e)}")
