@@ -31,9 +31,8 @@
                         <td>
                             <div class="btn-group" role="group">
                                 <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                        onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
-                                    Delete
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
+                                    <i class="bi bi-trash"></i> Delete
                                 </button>
                             </div>
                         </td>
@@ -58,7 +57,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" style="display: inline;">
+                <form id="deleteForm" method="POST">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
@@ -125,8 +124,7 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
         }
     } catch (err) {
         console.error('Error deleting document:', err);
-        const errorMessage = `Error deleting document: ${err.message}`;
-        showStatus(errorMessage, 'danger');
+        showStatus(`Error deleting document: ${err.message}`, 'danger');
         modal.hide();
     } finally {
         deleteButton.disabled = false;

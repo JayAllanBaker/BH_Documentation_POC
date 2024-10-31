@@ -82,7 +82,9 @@
                 <button type="submit" class="btn btn-primary" id="saveButton">Save Document</button>
                 <a href="{{ url_for('documentation.list') }}" class="btn btn-secondary">Cancel</a>
                 {% if doc and doc.id %}
-                <button type="button" class="btn btn-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">Delete</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
                 {% endif %}
             </div>
         </form>
@@ -222,12 +224,13 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
         }
         
         if (result.success) {
+            showStatus('Document saved successfully', 'success');
+            
             // Update URL with document ID if needed
             const currentUrl = new URL(window.location);
             if (currentUrl.pathname.split('/')[2] !== result.id.toString()) {
                 window.history.pushState({}, '', `/documents/${result.id}/edit`);
             }
-            showStatus('Document saved successfully', 'success');
         } else {
             throw new Error(result.error || 'Failed to save document');
         }
@@ -237,12 +240,6 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
     } finally {
         saveButton.disabled = false;
     }
-});
-
-// Add global error handler for unhandled promise rejections
-window.addEventListener('unhandledrejection', function(event) {
-    console.error('Unhandled promise rejection:', event.reason);
-    showStatus('An unexpected error occurred. Please try again.', 'danger');
 });
 </script>
 
