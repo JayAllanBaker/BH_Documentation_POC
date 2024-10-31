@@ -125,12 +125,11 @@ class AudioRecorder {
             const audioUrl = URL.createObjectURL(audioBlob);
             this.audioPlayer.src = audioUrl;
             
-            const urlParams = new URLSearchParams(window.location.search);
-            const docId = urlParams.get('id');
+            // Get document ID from URL path instead of search params
+            const docId = window.location.pathname.split('/')[2];
+            console.log('Document ID from path:', docId);
             
-            console.log('Document ID from URL:', docId);
-            
-            if (!docId || docId === '0' || docId === 'null') {
+            if (!docId || docId === '0') {
                 this.showStatus('Please save the document before recording audio. Click the Save Document button first.', 'warning');
                 return;
             }
@@ -201,9 +200,9 @@ class AudioRecorder {
 
 document.addEventListener('DOMContentLoaded', () => {
     const recorder = new AudioRecorder();
-    const docId = new URLSearchParams(window.location.search).get('id');
+    const docId = window.location.pathname.split('/')[2];
     
-    if (docId && docId !== '0' && docId !== 'null') {
+    if (docId && docId !== '0') {
         fetch(`/api/audio/${docId}`)
             .then(response => {
                 if (!response.ok) {
