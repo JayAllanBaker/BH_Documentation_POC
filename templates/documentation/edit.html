@@ -81,6 +81,9 @@
             <div class="mb-3">
                 <button type="submit" class="btn btn-primary" id="saveButton">Save Document</button>
                 <a href="{{ url_for('documentation.list') }}" class="btn btn-secondary">Cancel</a>
+                {% if doc and doc.id %}
+                <button type="button" class="btn btn-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">Delete</button>
+                {% endif %}
                 <div id="saveStatus" class="alert mt-2 d-none"></div>
             </div>
         </form>
@@ -108,19 +111,91 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete "<span id="documentTitle"></span>"?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Alert -->
+<div id="statusAlert" class="alert d-none fixed-bottom m-3" role="alert"></div>
+
 <script>
 function showStatus(message, type = 'info') {
-    const statusDiv = document.getElementById('saveStatus');
-    statusDiv.className = `alert alert-${type} mt-2`;
-    statusDiv.textContent = message;
-    statusDiv.classList.remove('d-none');
+    const alert = document.getElementById('statusAlert');
+    alert.className = `alert alert-${type} fixed-bottom m-3`;
+    alert.textContent = message;
+    alert.classList.remove('d-none');
     
     if (type !== 'danger') {
         setTimeout(() => {
-            statusDiv.classList.add('d-none');
+            alert.classList.add('d-none');
         }, 3000);
     }
 }
+
+function confirmDelete(docId, docTitle) {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    document.getElementById('documentTitle').textContent = docTitle;
+    document.getElementById('deleteForm').action = `/documents/${docId}/delete`;
+    modal.show();
+}
+
+// Handle delete form submission
+document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const deleteButton = form.querySelector('button[type="submit"]');
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+    
+    try {
+        deleteButton.disabled = true;
+        showStatus('Deleting document...', 'info');
+        
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || `Failed to delete document: ${response.status}`);
+        }
+        
+        if (result.success) {
+            modal.hide();
+            showStatus('Document deleted successfully', 'success');
+            window.location.href = '{{ url_for("documentation.list") }}';
+        } else {
+            throw new Error(result.error || 'Failed to delete document');
+        }
+    } catch (err) {
+        console.error('Error deleting document:', err);
+        const errorMessage = `Error deleting document: ${err.message}`;
+        showStatus(errorMessage, 'danger');
+        modal.hide();
+    } finally {
+        deleteButton.disabled = false;
+    }
+});
 
 // Handle form submission
 document.getElementById('documentForm').addEventListener('submit', async (e) => {
@@ -129,7 +204,6 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
     const saveButton = document.getElementById('saveButton');
     
     try {
-        // Disable save button while processing
         saveButton.disabled = true;
         showStatus('Saving document...', 'info');
         
@@ -170,12 +244,6 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
     } finally {
         saveButton.disabled = false;
     }
-});
-
-// Add global error handler for unhandled promise rejections
-window.addEventListener('unhandledrejection', function(event) {
-    console.error('Unhandled promise rejection:', event.reason);
-    showStatus('An unexpected error occurred. Please try again.', 'danger');
 });
 </script>
 
