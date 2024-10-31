@@ -82,10 +82,11 @@
                 <button type="submit" class="btn btn-primary" id="saveButton">Save Document</button>
                 <a href="{{ url_for('documentation.list') }}" class="btn btn-secondary">Cancel</a>
                 {% if doc and doc.id %}
-                <button type="button" class="btn btn-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
+                <button type="button" class="btn btn-danger ms-2" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
                     <i class="bi bi-trash"></i> Delete
                 </button>
                 {% endif %}
+                <div id="saveStatus" class="alert mt-2 d-none"></div>
             </div>
         </form>
     </div>
@@ -125,7 +126,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST">
+                <form id="deleteForm" method="POST" style="display: inline; margin: 0;">
                     <button type="submit" class="btn btn-danger">Delete</button>
                 </form>
             </div>
@@ -133,13 +134,10 @@
     </div>
 </div>
 
-<!-- Status Alert -->
-<div id="statusAlert" class="alert d-none fixed-bottom m-3" role="alert"></div>
-
 <script>
 function showStatus(message, type = 'info') {
-    const alert = document.getElementById('statusAlert');
-    alert.className = `alert alert-${type} fixed-bottom m-3`;
+    const alert = document.getElementById('saveStatus');
+    alert.className = `alert alert-${type} mt-2`;
     alert.textContent = message;
     alert.classList.remove('d-none');
     
