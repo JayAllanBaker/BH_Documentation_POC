@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+        display: inline-block;
+    }
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        background-color: #fff;
+    }
+    .invalid-feedback {
+        display: block;
+        color: #dc3545;
+    }
+</style>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Edit Patient</h2>
+                    <p class="text-muted mb-0"><small>Fields marked with <span class="text-danger">*</span> are required</small></p>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category if category != 'message' else 'info' }}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" id="patientForm" novalidate>
+                        <div class="mb-3">
+                            <label for="identifier" class="form-label required-field">Patient ID</label>
+                            <input type="text" class="form-control" id="identifier" name="identifier" 
+                                   required value="{{ patient.identifier }}">
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="family_name" class="form-label required-field">Family Name</label>
+                                <input type="text" class="form-control" id="family_name" name="family_name" 
+                                       required value="{{ patient.family_name }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="given_name" class="form-label required-field">Given Name</label>
+                                <input type="text" class="form-control" id="given_name" name="given_name" 
+                                       required value="{{ patient.given_name }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="gender" class="form-label required-field">Gender</label>
+                                <select class="form-select" id="gender" name="gender" required>
+                                    <option value="">Select gender</option>
+                                    <option value="male" {% if patient.gender == 'male' %}selected{% endif %}>Male</option>
+                                    <option value="female" {% if patient.gender == 'female' %}selected{% endif %}>Female</option>
+                                    <option value="other" {% if patient.gender == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="birth_date" class="form-label required-field">Birth Date</label>
+                                <input type="date" class="form-control" id="birth_date" name="birth_date" 
+                                       required value="{{ patient.birth_date.strftime('%Y-%m-%d') if patient.birth_date }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" value="{{ patient.phone or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ patient.email or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="address_line" class="form-label">Address</label>
+                            <input type="text" class="form-control" id="address_line" name="address_line" 
+                                   value="{{ patient.address_line or '' }}">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="city" name="city" value="{{ patient.city or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="state" class="form-label">State</label>
+                                <input type="text" class="form-control" id="state" name="state" value="{{ patient.state or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="postal_code" class="form-label">Postal Code</label>
+                                <input type="text" class="form-control" id="postal_code" name="postal_code" 
+                                       value="{{ patient.postal_code or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="country" class="form-label">Country</label>
+                                <input type="text" class="form-control" id="country" name="country" value="{{ patient.country or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Update Patient</button>
+                            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('patientForm').addEventListener('submit', function(event) {
+    let isValid = true;
+    const requiredFields = this.querySelectorAll('[required]');
+    
+    requiredFields.forEach(field => {
+        if (!field.value) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    if (!isValid) {
+        event.preventDefault();
+        const firstInvalid = this.querySelector('.is-invalid');
+        if (firstInvalid) {
+            firstInvalid.focus();
+        }
+    }
+});
+</script>
+{% endblock %}
