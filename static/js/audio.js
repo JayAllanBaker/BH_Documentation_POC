@@ -20,7 +20,6 @@ class AudioRecorder {
         this.statusIndicator.className = 'alert mt-2 d-none';
         const parentNode = this.startButton.closest('.card-body');
         if (parentNode) {
-            // Insert after the buttons but before the audio player
             parentNode.insertBefore(this.statusIndicator, this.audioPlayer);
         }
     }
@@ -65,7 +64,6 @@ class AudioRecorder {
             this.startButton.disabled = true;
             this.stopButton.disabled = false;
             
-            // Start recording timer
             this.recordingTime = 0;
             this.recordingTimer = setInterval(() => {
                 this.recordingTime++;
@@ -98,8 +96,13 @@ class AudioRecorder {
             const audioUrl = URL.createObjectURL(audioBlob);
             this.audioPlayer.src = audioUrl;
             
+            // Get document ID from URL
             const urlParams = new URLSearchParams(window.location.search);
             const docId = urlParams.get('id');
+            
+            if (!docId) {
+                throw new Error('Invalid document ID. Please try again.');
+            }
             
             const formData = new FormData();
             formData.append('audio', audioBlob, 'recording.wav');
@@ -112,18 +115,18 @@ class AudioRecorder {
                 body: formData
             });
             
-            const result = await response.json();
-            
             if (!response.ok) {
+                const result = await response.json();
                 throw new Error(result.error || 'Upload failed');
             }
             
+            const result = await response.json();
             console.log('Upload successful:', result.filename);
             this.showStatus('Recording uploaded successfully!', 'success');
             
             if (result.transcription) {
                 this.transcriptionDisplay.textContent = result.transcription;
-                const docResponse = await fetch('/api/generate-documentation', {
+                await fetch('/api/generate-documentation', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -131,15 +134,11 @@ class AudioRecorder {
                     body: JSON.stringify({ document_id: docId })
                 });
                 
-                if (!docResponse.ok) {
-                    throw new Error('Failed to generate documentation');
-                }
-                
                 window.location.reload();
             }
         } catch (err) {
             console.error('Error uploading audio:', err);
-            this.showStatus(`Error: ${err.message}. Please try again.`, 'danger');
+            this.showStatus(`Error: ${err.message}`, 'danger');
         }
     }
 }

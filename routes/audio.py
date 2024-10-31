@@ -50,12 +50,25 @@ def upload_audio():
         audio_file = request.files['audio']
         doc_id = request.form.get('document_id')
         
-        if not doc_id or not doc_id.isdigit():
-            logger.error(f"Invalid document ID: {doc_id}")
-            return jsonify({'error': 'Invalid document ID'}), 400
+        if not doc_id:
+            logger.error("Document ID is missing")
+            return jsonify({'error': 'Document ID is required'}), 400
+            
+        if not doc_id.isdigit():
+            logger.error(f"Invalid document ID format: {doc_id}")
+            return jsonify({'error': 'Invalid document ID format'}), 400
             
         doc_id = int(doc_id)
         
+        document = Document.query.get(doc_id)
+        if not document:
+            logger.error(f"Document not found: {doc_id}")
+            return jsonify({'error': 'Document not found'}), 404
+            
+        if document.author_id != current_user.id:
+            logger.error(f"Unauthorized access to document: {doc_id}")
+            return jsonify({'error': 'Unauthorized access'}), 403
+            
         if not audio_file or not audio_file.filename:
             logger.error("No selected file")
             return jsonify({'error': 'No selected file'}), 400
@@ -77,21 +90,16 @@ def upload_audio():
                 transcription = result["text"]
                 logger.info("Transcription completed successfully")
                 
-                document = Document.query.get(doc_id)
-                if document and document.author_id == current_user.id:
-                    document.recording_path = save_path
-                    document.transcription = transcription
-                    db.session.commit()
-                    logger.info("Document updated with transcription")
-                    
-                    return jsonify({
-                        'filename': filename,
-                        'transcription': transcription,
-                        'status': 'success'
-                    }), 200
-                else:
-                    logger.error(f"Document not found or unauthorized. ID: {doc_id}")
-                    return jsonify({'error': 'Document not found or unauthorized'}), 404
+                document.recording_path = save_path
+                document.transcription = transcription
+                db.session.commit()
+                logger.info("Document updated with transcription")
+                
+                return jsonify({
+                    'filename': filename,
+                    'transcription': transcription,
+                    'status': 'success'
+                }), 200
                     
             except Exception as e:
                 logger.error(f"Transcription failed: {str(e)}")
