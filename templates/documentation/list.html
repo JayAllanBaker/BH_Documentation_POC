@@ -65,8 +65,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteForm" method="POST" action="{{ url_for('documentation.bulk_delete') }}" class="d-inline m-0">
-                    <button type="submit" class="btn btn-danger">Delete</button>
+                <button type="submit" class="btn btn-danger" form="deleteForm">Delete</button>
+                <form id="deleteForm" method="POST" action="{{ url_for('documentation.bulk_delete') }}" class="d-none">
                 </form>
             </div>
         </div>
@@ -136,7 +136,7 @@ document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
 document.getElementById('deleteForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const form = this;
-    const submitButton = form.querySelector('button[type="submit"]');
+    const submitButton = document.querySelector('button[form="deleteForm"]');
     const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
     
     try {
