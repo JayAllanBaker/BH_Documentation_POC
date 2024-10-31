@@ -24,12 +24,13 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        email = request.form.get('email')
         
         if User.query.filter_by(username=username).first():
             flash('Username already exists')
             return redirect(url_for('auth.register'))
         
-        user = User(username=username)
+        user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
