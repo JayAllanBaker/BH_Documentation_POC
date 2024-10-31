@@ -11,11 +11,6 @@ def list():
     documents = Document.query.filter_by(author_id=current_user.id).order_by(Document.created_at.desc()).all()
     return render_template('documentation/list.html', documents=documents)
 
-@docs_bp.route('/documents/new', methods=['GET'])
-@login_required
-def new():
-    return render_template('documentation/edit.html', doc=None)
-
 @docs_bp.route('/documents/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(id):
@@ -27,6 +22,7 @@ def edit(id):
         )
         db.session.add(doc)
         db.session.commit()
+        flash('Document created successfully')
         return redirect(url_for('documentation.edit', id=doc.id))
         
     doc = Document.query.get_or_404(id)
@@ -52,6 +48,6 @@ def edit(id):
         
         db.session.commit()
         flash('Document updated successfully')
-        return redirect(url_for('documentation.edit', id=doc.id))  # Changed to redirect back to edit page
+        return redirect(url_for('documentation.edit', id=doc.id))
         
     return render_template('documentation/edit.html', doc=doc)

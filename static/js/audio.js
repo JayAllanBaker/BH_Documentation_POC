@@ -105,7 +105,7 @@ class AudioRecorder {
             
             console.log('Document ID from URL:', docId);
             
-            if (!docId || docId === '0') {
+            if (!docId || docId === '0' || docId === 'null') {
                 this.showStatus('Please save the document before recording audio. Click the Save Document button first.', 'warning');
                 return;
             }
@@ -121,12 +121,12 @@ class AudioRecorder {
                 body: formData
             });
             
-            const result = await response.json();
-            
             if (!response.ok) {
+                const result = await response.json();
                 throw new Error(result.error || 'Upload failed');
             }
             
+            const result = await response.json();
             console.log('Upload successful:', result);
             this.showStatus('Recording uploaded successfully!', 'success');
             
@@ -145,8 +145,6 @@ class AudioRecorder {
                 if (!docResponse.ok) {
                     throw new Error('Failed to generate documentation');
                 }
-                
-                window.location.reload();
             }
         } catch (err) {
             console.error('Error uploading audio:', err);
@@ -158,7 +156,7 @@ class AudioRecorder {
 document.addEventListener('DOMContentLoaded', () => {
     const recorder = new AudioRecorder();
     const docId = new URLSearchParams(window.location.search).get('id');
-    if (docId) {
+    if (docId && docId !== '0' && docId !== 'null') {
         fetch(`/api/audio/${docId}`)
             .then(response => {
                 if (response.ok) {
