@@ -106,7 +106,8 @@ class AudioRecorder {
             console.log('Document ID from URL:', docId);
             
             if (!docId || docId === '0') {
-                throw new Error('Invalid document ID. Please save the document first.');
+                this.showStatus('Please save the document before recording audio. Click the Save Document button first.', 'warning');
+                return;
             }
             
             const formData = new FormData();

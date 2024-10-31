@@ -52,6 +52,6 @@ def edit(id):
         
         db.session.commit()
         flash('Document updated successfully')
-        return redirect(url_for('documentation.list'))
+        return redirect(url_for('documentation.edit', id=doc.id))  # Changed to redirect back to edit page
         
     return render_template('documentation/edit.html', doc=doc)
