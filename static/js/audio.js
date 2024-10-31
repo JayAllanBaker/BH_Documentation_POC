@@ -20,6 +20,7 @@ class AudioRecorder {
         this.statusIndicator.className = 'alert mt-2 d-none';
         const parentNode = this.startButton.closest('.card-body');
         if (parentNode) {
+            // Insert after the buttons but before the audio player
             parentNode.insertBefore(this.statusIndicator, this.audioPlayer);
         }
     }
@@ -44,9 +45,7 @@ class AudioRecorder {
     async startRecording() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
+            this.mediaRecorder = new MediaRecorder(stream);
             
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -61,6 +60,7 @@ class AudioRecorder {
             };
             
             this.mediaRecorder.start();
+            this.audioChunks = [];
             this.isRecording = true;
             this.startButton.disabled = true;
             this.stopButton.disabled = false;
@@ -94,7 +94,7 @@ class AudioRecorder {
     
     async handleRecordingComplete() {
         try {
-            const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav; codecs=MS_PCM' });
+            const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
             const audioUrl = URL.createObjectURL(audioBlob);
             this.audioPlayer.src = audioUrl;
             
@@ -141,8 +141,6 @@ class AudioRecorder {
             console.error('Error uploading audio:', err);
             this.showStatus(`Error: ${err.message}. Please try again.`, 'danger');
         }
-        
-        this.audioChunks = [];
     }
 }
 

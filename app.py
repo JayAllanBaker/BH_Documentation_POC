@@ -44,6 +44,16 @@ with app.app_context():
     import models
     db.drop_all()
     db.create_all()
+    
+    # Create test user if it doesn't exist
+    if models.User.query.filter_by(username='test_provider').first() is None:
+        test_user = models.User(
+            username='test_provider',
+            email='test@example.com'
+        )
+        test_user.set_password('testpass123')
+        db.session.add(test_user)
+        db.session.commit()
 
 @login_manager.user_loader
 def load_user(user_id):
