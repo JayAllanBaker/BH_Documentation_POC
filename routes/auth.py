@@ -30,7 +30,7 @@ def register():
             flash('Username already exists')
             return redirect(url_for('auth.register'))
         
-        user = User(username=username, email=email)
+        user = User(username=username, email=email, role='user')  # Set default role
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
