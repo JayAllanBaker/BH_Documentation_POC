@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Patients</h2>
+        <a href="{{ url_for('patients.create_patient') }}" class="btn btn-primary">New Patient</a>
+    </div>
+    
+    <div class="list-group">
+        {% for patient in patients %}
+        <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h5>
+                <small>ID: {{ patient.identifier }}</small>
+            </div>
+            <div class="mb-2">
+                <span class="badge bg-info me-2">{{ patient.gender }}</span>
+                {% if patient.birth_date %}
+                <span class="badge bg-secondary">DOB: {{ patient.birth_date.strftime('%Y-%m-%d') }}</span>
+                {% endif %}
+            </div>
+            <p class="mb-1">
+                {% if patient.address_line %}
+                <small class="text-body-secondary">{{ patient.address_line }}, {{ patient.city }}, {{ patient.state }} {{ patient.postal_code }}</small>
+                {% endif %}
+            </p>
+            <div class="mt-2">
+                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-sm btn-info">View</a>
+                <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                {% if patient.documents %}
+                <a href="{{ url_for('documents.list_documents') }}?patient_id={{ patient.id }}" class="btn btn-sm btn-outline-info">Documents ({{ patient.documents|length }})</a>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item">
+            <p class="mb-0">No patients found.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
