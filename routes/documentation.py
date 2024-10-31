@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app import db
 from models import Document
+import os
 
 docs_bp = Blueprint('documentation', __name__)
 
@@ -53,3 +54,37 @@ def edit(id):
         return redirect(url_for('documentation.edit', id=doc.id))
         
     return render_template('documentation/edit.html', doc=doc)
+
+@docs_bp.route('/documents/<int:id>/delete', methods=['POST'])
+@login_required
+def delete(id):
+    doc = Document.query.get_or_404(id)
+    
+    if doc.author_id != current_user.id:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': 'Unauthorized access'}), 403
+        flash('You do not have permission to delete this document')
+        return redirect(url_for('documentation.list'))
+    
+    try:
+        # Delete associated audio file if it exists
+        if doc.recording_path and os.path.exists(doc.recording_path):
+            os.remove(doc.recording_path)
+        
+        # Delete the document from database
+        db.session.delete(doc)
+        db.session.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True})
+            
+        flash('Document deleted successfully')
+        return redirect(url_for('documentation.list'))
+        
+    except Exception as e:
+        db.session.rollback()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': str(e)}), 500
+            
+        flash(f'Error deleting document: {str(e)}')
+        return redirect(url_for('documentation.list'))

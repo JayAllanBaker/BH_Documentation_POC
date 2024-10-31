@@ -29,7 +29,13 @@
                         <td>{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>{{ doc.status }}</td>
                         <td>
-                            <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                                <button type="button" class="btn btn-sm btn-danger" 
+                                        onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
+                                    Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -38,4 +44,63 @@
         </div>
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete "<span id="documentTitle"></span>"?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(docId, docTitle) {
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    document.getElementById('documentTitle').textContent = docTitle;
+    document.getElementById('deleteForm').action = `/documents/${docId}/delete`;
+    modal.show();
+}
+
+// Handle delete form submission
+document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to delete document: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            window.location.reload();
+        } else {
+            throw new Error(result.error || 'Failed to delete document');
+        }
+    } catch (err) {
+        console.error('Error deleting document:', err);
+        alert(`Error deleting document: ${err.message}`);
+    }
+});
+</script>
 {% endblock %}
