@@ -11,16 +11,25 @@ def login():
         try:
             username = request.form.get('username')
             password = request.form.get('password')
+            
+            if not username or not password:
+                flash('Both username and password are required')
+                return render_template('auth/login.html')
+            
             user = User.query.filter_by(username=username).first()
             
             if user and user.check_password(password):
                 login_user(user)
+                app.logger.info(f'Successful login for user: {username}')
                 return redirect(url_for('main.dashboard'))
             
+            app.logger.warning(f'Failed login attempt for username: {username}')
             flash('Invalid username or password')
+            
         except Exception as e:
             app.logger.error(f'Login error: {str(e)}')
             flash('An error occurred during login. Please try again.')
+            
     return render_template('auth/login.html')
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
