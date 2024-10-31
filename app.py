@@ -17,7 +17,7 @@ if database_url:
     # Remove any existing sslmode parameter
     if '?' in database_url:
         database_url = database_url.split('?')[0]
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url + '?sslmode=require'
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url + '?sslmode=prefer'
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
