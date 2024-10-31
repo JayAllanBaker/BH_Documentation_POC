@@ -9,13 +9,15 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=True)
-    password_hash = db.Column(db.String(512), nullable=False)  # Increased from 256 to 512
+    password_hash = db.Column(db.String(512), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')
     documents = db.relationship('Document', backref='author', lazy=True)
 
+    # Remove the existing unique constraint on email
     __table_args__ = (
+        # Add a conditional unique index that only applies to non-null emails
         db.Index('unique_email_when_not_null', 'email', unique=True, 
-                 postgresql_where=(email != None)),
+                postgresql_where=db.text('email IS NOT NULL')),
     )
 
     def set_password(self, password):
