@@ -43,6 +43,10 @@ def register():
             flash('Username and password are required')
             return redirect(url_for('auth.register'))
         
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long')
+            return redirect(url_for('auth.register'))
+            
         if User.query.filter_by(username=username).first():
             flash('Username already exists')
             return redirect(url_for('auth.register'))
@@ -52,6 +56,7 @@ def register():
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
+            app.logger.info(f'User registered successfully: {username}')
             flash('Registration successful. Please login.')
             return redirect(url_for('auth.login'))
         except Exception as e:

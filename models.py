@@ -14,13 +14,14 @@ class User(UserMixin, db.Model):
     documents = db.relationship('Document', backref='author', lazy=True)
 
     def set_password(self, password):
-        if password:
-            self.password_hash = generate_password_hash(password)
+        if not password:
+            raise ValueError('Password cannot be empty')
+        self.password_hash = generate_password_hash(password, method='sha256')
 
     def check_password(self, password):
-        if password and self.password_hash:
-            return check_password_hash(self.password_hash, password)
-        return False
+        if not password or not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, password)
 
 class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)

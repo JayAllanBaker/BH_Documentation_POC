@@ -31,7 +31,12 @@ if database_url:
         ssl_params = {
             'sslmode': ['require'],
             'connect_timeout': ['30'],
-            'target_session_attrs': ['read-write']
+            'application_name': ['flask_app'],
+            'target_session_attrs': ['read-write'],
+            'keepalives': ['1'],
+            'keepalives_idle': ['30'],
+            'keepalives_interval': ['10'],
+            'keepalives_count': ['5']
         }
         params.update(ssl_params)
         
@@ -59,9 +64,11 @@ else:
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
     'pool_size': 10,
     'pool_timeout': 30,
     'pool_recycle': 1800,
+    'max_overflow': 15
 }
 
 # Initialize extensions
