@@ -20,34 +20,74 @@ def create_patient():
             identifier = request.form.get('identifier')
             family_name = request.form.get('family_name')
             given_name = request.form.get('given_name')
+            gender = request.form.get('gender')
+            birth_date_str = request.form.get('birth_date')
             
             # Validate required fields
-            if not all([identifier, family_name, given_name]):
-                flash('Patient ID, Family Name, and Given Name are required fields')
-                return render_template('patients/new.html')
+            form_errors = not all([identifier, family_name, given_name, gender, birth_date_str])
+            if form_errors:
+                flash('Please fill in all required fields', 'danger')
+                return render_template('patients/new.html', 
+                    form_errors=True,
+                    identifier=identifier,
+                    family_name=family_name,
+                    given_name=given_name,
+                    gender=gender,
+                    birth_date=birth_date_str,
+                    phone=request.form.get('phone'),
+                    email=request.form.get('email'),
+                    address_line=request.form.get('address_line'),
+                    city=request.form.get('city'),
+                    state=request.form.get('state'),
+                    postal_code=request.form.get('postal_code'),
+                    country=request.form.get('country'))
             
             # Check for duplicate identifier
             if Patient.query.filter_by(identifier=identifier).first():
-                flash('A patient with this ID already exists')
-                return render_template('patients/new.html')
+                flash('A patient with this ID already exists', 'danger')
+                return render_template('patients/new.html', 
+                    form_errors=True,
+                    identifier=identifier,
+                    family_name=family_name,
+                    given_name=given_name,
+                    gender=gender,
+                    birth_date=birth_date_str,
+                    phone=request.form.get('phone'),
+                    email=request.form.get('email'),
+                    address_line=request.form.get('address_line'),
+                    city=request.form.get('city'),
+                    state=request.form.get('state'),
+                    postal_code=request.form.get('postal_code'),
+                    country=request.form.get('country'))
 
             # Convert birth_date string to date object
             birth_date = None
-            birth_date_str = request.form.get('birth_date')
-            if birth_date_str:
-                try:
-                    birth_date = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
-                except ValueError as e:
-                    current_app.logger.error(f'Invalid date format: {str(e)}')
-                    flash('Invalid date format')
-                    return render_template('patients/new.html')
+            try:
+                birth_date = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
+            except ValueError as e:
+                current_app.logger.error(f'Invalid date format: {str(e)}')
+                flash('Invalid date format', 'danger')
+                return render_template('patients/new.html', 
+                    form_errors=True,
+                    identifier=identifier,
+                    family_name=family_name,
+                    given_name=given_name,
+                    gender=gender,
+                    birth_date=birth_date_str,
+                    phone=request.form.get('phone'),
+                    email=request.form.get('email'),
+                    address_line=request.form.get('address_line'),
+                    city=request.form.get('city'),
+                    state=request.form.get('state'),
+                    postal_code=request.form.get('postal_code'),
+                    country=request.form.get('country'))
 
             # Create new patient
             patient = Patient(
                 identifier=identifier,
                 family_name=family_name,
                 given_name=given_name,
-                gender=request.form.get('gender'),
+                gender=gender,
                 birth_date=birth_date,
                 phone=request.form.get('phone'),
                 email=request.form.get('email'),
@@ -61,14 +101,27 @@ def create_patient():
             db.session.add(patient)
             db.session.commit()
             current_app.logger.info(f'Patient created successfully: {identifier}')
-            flash('Patient created successfully')
+            flash('Patient created successfully', 'success')
             return redirect(url_for('patients.list_patients'))
             
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Error creating patient: {str(e)}')
-            flash('An error occurred while creating the patient')
-            return render_template('patients/new.html')
+            flash('An error occurred while creating the patient', 'danger')
+            return render_template('patients/new.html', 
+                form_errors=True,
+                identifier=identifier,
+                family_name=family_name,
+                given_name=given_name,
+                gender=gender,
+                birth_date=birth_date_str,
+                phone=request.form.get('phone'),
+                email=request.form.get('email'),
+                address_line=request.form.get('address_line'),
+                city=request.form.get('city'),
+                state=request.form.get('state'),
+                postal_code=request.form.get('postal_code'),
+                country=request.form.get('country'))
             
     return render_template('patients/new.html')
 
@@ -92,7 +145,7 @@ def edit_patient(id):
                     birth_date = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
                 except ValueError as e:
                     current_app.logger.error(f'Invalid date format: {str(e)}')
-                    flash('Invalid date format')
+                    flash('Invalid date format', 'danger')
                     return render_template('patients/edit.html', patient=patient)
 
             patient.identifier = request.form.get('identifier')
@@ -110,12 +163,12 @@ def edit_patient(id):
             
             db.session.commit()
             current_app.logger.info(f'Patient updated successfully: {patient.identifier}')
-            flash('Patient updated successfully')
+            flash('Patient updated successfully', 'success')
             return redirect(url_for('patients.view_patient', id=id))
             
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Error updating patient: {str(e)}')
-            flash('An error occurred while updating the patient')
+            flash('An error occurred while updating the patient', 'danger')
             
     return render_template('patients/edit.html', patient=patient)
