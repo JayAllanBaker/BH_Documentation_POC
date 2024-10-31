@@ -129,11 +129,11 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
     const form = e.target;
     const saveButton = document.getElementById('saveButton');
     
-    // Disable save button while processing
-    saveButton.disabled = true;
-    showStatus('Saving document...', 'info');
-    
     try {
+        // Disable save button while processing
+        saveButton.disabled = true;
+        showStatus('Saving document...', 'info');
+        
         const formData = new FormData(form);
         
         const response = await fetch(form.action, {
@@ -175,5 +175,8 @@ window.addEventListener('unhandledrejection', function(event) {
 });
 </script>
 
-<script src="{{ url_for('static', filename='js/audio.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio.js') }}" 
+    onerror="console.error('Failed to load audio.js'); showStatus('Error loading audio recording functionality', 'danger');">
+</script>
+
 {% endblock %}
