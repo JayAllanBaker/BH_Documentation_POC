@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Documents</h5>
+                <a href="{{ url_for('documents.list_documents') }}" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for document in documents %}
+                <a href="{{ url_for('documents.view_document', id=document.id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ document.title }}</h6>
+                        <small>{{ document.updated_at.strftime('%Y-%m-%d') }}</small>
+                    </div>
+                </a>
+                {% else %}
+                <div class="list-group-item">No documents yet</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Patients</h5>
+                <a href="{{ url_for('patients.list_patients') }}" class="btn btn-sm btn-primary">View All</a>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for patient in patients %}
+                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
+                        <small>{{ patient.updated_at.strftime('%Y-%m-%d') }}</small>
+                    </div>
+                    <small>ID: {{ patient.identifier }}</small>
+                </a>
+                {% else %}
+                <div class="list-group-item">No patients yet</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
