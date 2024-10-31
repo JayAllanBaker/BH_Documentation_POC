@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Patient Details</h2>
+                <div>
+                    <a href="{{ url_for('patients.edit_patient', id=patient.id) }}" class="btn btn-primary">Edit</a>
+                    <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary">Back to List</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h3>Basic Information</h3>
+                    <dl class="row">
+                        <dt class="col-sm-4">Patient ID</dt>
+                        <dd class="col-sm-8">{{ patient.identifier }}</dd>
+
+                        <dt class="col-sm-4">Name</dt>
+                        <dd class="col-sm-8">{{ patient.family_name }}, {{ patient.given_name }}</dd>
+
+                        <dt class="col-sm-4">Gender</dt>
+                        <dd class="col-sm-8">{{ patient.gender|title if patient.gender }}</dd>
+
+                        <dt class="col-sm-4">Birth Date</dt>
+                        <dd class="col-sm-8">{{ patient.birth_date.strftime('%Y-%m-%d') if patient.birth_date }}</dd>
+                    </dl>
+                </div>
+                
+                <div class="col-md-6">
+                    <h3>Contact Information</h3>
+                    <dl class="row">
+                        <dt class="col-sm-4">Phone</dt>
+                        <dd class="col-sm-8">{{ patient.phone if patient.phone }}</dd>
+
+                        <dt class="col-sm-4">Email</dt>
+                        <dd class="col-sm-8">{{ patient.email if patient.email }}</dd>
+                    </dl>
+
+                    <h3>Address</h3>
+                    <dl class="row">
+                        <dt class="col-sm-4">Street</dt>
+                        <dd class="col-sm-8">{{ patient.address_line if patient.address_line }}</dd>
+
+                        <dt class="col-sm-4">City</dt>
+                        <dd class="col-sm-8">{{ patient.city if patient.city }}</dd>
+
+                        <dt class="col-sm-4">State</dt>
+                        <dd class="col-sm-8">{{ patient.state if patient.state }}</dd>
+
+                        <dt class="col-sm-4">Postal Code</dt>
+                        <dd class="col-sm-8">{{ patient.postal_code if patient.postal_code }}</dd>
+
+                        <dt class="col-sm-4">Country</dt>
+                        <dd class="col-sm-8">{{ patient.country if patient.country }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            {% if patient.documents %}
+            <div class="mt-4">
+                <h3>Related Documents</h3>
+                <div class="list-group">
+                    {% for document in patient.documents %}
+                    <a href="{{ url_for('documents.view_document', id=document.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ document.title }}</h5>
+                            <small>{{ document.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
