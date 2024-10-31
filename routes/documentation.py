@@ -87,7 +87,37 @@ def edit(id):
         
     return render_template('documentation/edit.html', doc=doc)
 
-@docs_bp.route('/documents/delete', methods=['POST'])
+@docs_bp.route('/documents/<int:id>/delete', methods=['POST'])
+@login_required
+def delete(id):
+    try:
+        doc = Document.query.get_or_404(id)
+        if doc.author_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        # Delete associated audio file if it exists
+        if doc.recording_path and os.path.exists(doc.recording_path):
+            try:
+                os.remove(doc.recording_path)
+            except OSError as e:
+                logger.error(f"Error deleting audio file: {str(e)}")
+        
+        db.session.delete(doc)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting document: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'error': str(e)
+        }), 500
+
+@docs_bp.route('/documents/bulk-delete', methods=['POST'])
 @login_required
 def bulk_delete():
     try:
@@ -101,6 +131,7 @@ def bulk_delete():
             if doc.author_id != current_user.id:
                 continue
                 
+            # Delete associated audio file if it exists
             if doc.recording_path and os.path.exists(doc.recording_path):
                 try:
                     os.remove(doc.recording_path)
@@ -120,36 +151,5 @@ def bulk_delete():
         logger.error(f"Error deleting documents: {str(e)}")
         db.session.rollback()
         return jsonify({
-            'error': 'An error occurred while deleting the documents',
-            'details': str(e)
-        }), 500
-
-@docs_bp.route('/documents/<int:id>/delete', methods=['POST'])
-@login_required
-def delete(id):
-    try:
-        doc = Document.query.get_or_404(id)
-        if doc.author_id != current_user.id:
-            return jsonify({'error': 'Unauthorized'}), 403
-            
-        if doc.recording_path and os.path.exists(doc.recording_path):
-            try:
-                os.remove(doc.recording_path)
-            except OSError as e:
-                logger.error(f"Error deleting audio file: {str(e)}")
-        
-        db.session.delete(doc)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Document deleted successfully'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error deleting document: {str(e)}")
-        db.session.rollback()
-        return jsonify({
-            'error': 'An error occurred while deleting the document',
-            'details': str(e)
+            'error': str(e)
         }), 500

@@ -183,19 +183,18 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
             }
         });
         
-        const result = await response.json();
-        
         if (!response.ok) {
-            throw new Error(result.error || `Failed to delete document: ${response.status}`);
+            throw new Error(`Failed to delete document: ${response.status}`);
         }
         
-        if (result.success) {
-            modal.hide();
-            showStatus('Document deleted successfully', 'success');
-            window.location.href = '{{ url_for("documentation.list") }}';
-        } else {
+        const result = await response.json();
+        if (!result.success) {
             throw new Error(result.error || 'Failed to delete document');
         }
+        
+        modal.hide();
+        showStatus('Document deleted successfully', 'success');
+        window.location.href = '{{ url_for("documentation.list") }}';
     } catch (err) {
         console.error('Error deleting document:', err);
         showStatus(`Error deleting document: ${err.message}`, 'danger');
@@ -225,22 +224,28 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
             }
         });
         
-        const result = await response.json();
-        
         if (!response.ok) {
-            throw new Error(result.error || `Failed to save document: ${response.status}`);
+            const errorMessage = await response.text();
+            throw new Error(errorMessage || `Failed to save document: ${response.status}`);
         }
         
-        if (result.success) {
-            showStatus('Document saved successfully', 'success');
-            
-            // Update URL with document ID if needed
-            const currentUrl = new URL(window.location);
-            if (currentUrl.pathname.split('/')[2] !== result.id.toString()) {
-                window.history.pushState({}, '', `/documents/${result.id}/edit`);
-            }
-        } else {
+        let result;
+        try {
+            result = await response.json();
+        } catch (parseError) {
+            throw new Error('Invalid response from server');
+        }
+        
+        if (!result.success) {
             throw new Error(result.error || 'Failed to save document');
+        }
+        
+        showStatus('Document saved successfully', 'success');
+        
+        // Update URL with document ID if needed
+        const currentUrl = new URL(window.location);
+        if (currentUrl.pathname.split('/')[2] !== result.id.toString()) {
+            window.history.pushState({}, '', `/documents/${result.id}/edit`);
         }
     } catch (err) {
         console.error('Error saving document:', err);
