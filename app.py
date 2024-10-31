@@ -19,13 +19,14 @@ if database_url:
     parsed = urlparse(database_url)
     
     # Get existing query parameters
-    params = parse_qs(parsed.query)
+    params = parse_qs(parsed.query) if parsed.query else {}
     
     # Update SSL parameters
-    params.update({
-        'sslmode': ['require'],
+    ssl_params = {
+        'sslmode': ['require'],  # Changed from verify-ca to require
         'connect_timeout': ['30']
-    })
+    }
+    params.update(ssl_params)
     
     # Create new query string
     query = urlencode(params, doseq=True)
