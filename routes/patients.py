@@ -42,10 +42,11 @@ def create_patient():
                     postal_code=request.form.get('postal_code'),
                     country=request.form.get('country'))
             
-            # Check for duplicate identifier
-            if Patient.query.filter_by(identifier=identifier).first():
-                flash('A patient with this ID already exists', 'danger')
-                return render_template('patients/new.html', 
+            # Check for duplicate identifier with improved error message
+            existing_patient = Patient.query.filter_by(identifier=identifier).first()
+            if existing_patient:
+                flash(f'Patient ID {identifier} already exists. Please use a different ID.', 'danger')
+                return render_template('patients/new.html',
                     form_errors=True,
                     identifier=identifier,
                     family_name=family_name,

@@ -4,8 +4,9 @@
 <style>
     .required-field::after {
         content: " *";
-        color: red;
+        color: #dc3545;
         font-weight: bold;
+        display: inline-block;  /* Ensure the asterisk is always visible */
     }
     .form-control.is-invalid {
         border-color: #dc3545;
