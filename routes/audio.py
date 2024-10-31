@@ -155,7 +155,10 @@ def generate_documentation():
         db.session.commit()
         logger.info(f"Documentation generated for document ID: {doc_id}")
         
-        return jsonify({'success': True, 'analysis': analysis_result}), 200
+        return jsonify({
+            'success': True,
+            'analysis': analysis_result
+        }), 200
         
     except Exception as e:
         logger.error(f"Unexpected error in generate_documentation: {str(e)}")

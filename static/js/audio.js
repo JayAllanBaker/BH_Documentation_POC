@@ -128,11 +128,12 @@ class AudioRecorder {
             
             const result = await response.json();
             console.log('Upload successful:', result);
-            this.showStatus('Recording uploaded successfully!', 'success');
             
             if (result.transcription) {
                 this.transcriptionDisplay.textContent = result.transcription;
                 console.log('Transcription received:', result.transcription);
+                
+                this.showStatus('Analyzing transcription for MEAT/TAMPER documentation...', 'info');
                 
                 const docResponse = await fetch('/api/generate-documentation', {
                     method: 'POST',
@@ -145,9 +146,28 @@ class AudioRecorder {
                 if (!docResponse.ok) {
                     throw new Error('Failed to generate documentation');
                 }
+                
+                const analysisResult = await docResponse.json();
+                if (analysisResult.success) {
+                    this.showStatus('MEAT/TAMPER analysis complete! Updating fields...', 'success');
+                    
+                    // Update all MEAT/TAMPER fields with the analysis results
+                    for (const [key, value] of Object.entries(analysisResult.analysis)) {
+                        const field = document.getElementById(key);
+                        if (field) {
+                            field.value = value;
+                        }
+                    }
+                    
+                    setTimeout(() => {
+                        this.showStatus('Document updated successfully!', 'success');
+                    }, 2000);
+                } else {
+                    throw new Error('Analysis failed');
+                }
             }
         } catch (err) {
-            console.error('Error uploading audio:', err);
+            console.error('Error:', err);
             this.showStatus(`Error: ${err.message}`, 'danger');
         }
     }
