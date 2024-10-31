@@ -10,7 +10,14 @@ from routes.main import main_bp
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+
+# Modify DATABASE_URL to handle SSL requirements
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgresql://'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url + "?sslmode=require"
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
