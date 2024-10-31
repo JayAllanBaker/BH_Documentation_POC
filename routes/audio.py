@@ -136,19 +136,22 @@ def generate_documentation():
         logger.info(f"Analyzing transcription for document ID: {doc_id}")
         analysis_result = analyze_transcription(document.transcription)
         
-        if isinstance(analysis_result, str):
-            try:
-                analysis_result = json.loads(analysis_result)
-            except json.JSONDecodeError:
-                logger.error("Failed to parse AI analysis result")
-                return jsonify({'error': 'Failed to parse AI analysis result'}), 500
+        if not isinstance(analysis_result, dict):
+            logger.error("Invalid analysis result format")
+            return jsonify({'error': 'Invalid analysis result format'}), 500
         
         # Update document with AI analysis results
-        for field, value in analysis_result.items():
-            if hasattr(document, field):
-                setattr(document, field, value)
+        document.meat_monitor = analysis_result.get('meat_monitor', '')
+        document.meat_evaluate = analysis_result.get('meat_evaluate', '')
+        document.meat_assess = analysis_result.get('meat_assess', '')
+        document.meat_treat = analysis_result.get('meat_treat', '')
+        document.tamper_time = analysis_result.get('tamper_time', '')
+        document.tamper_action = analysis_result.get('tamper_action', '')
+        document.tamper_medical_necessity = analysis_result.get('tamper_medical_necessity', '')
+        document.tamper_plan = analysis_result.get('tamper_plan', '')
+        document.tamper_education = analysis_result.get('tamper_education', '')
+        document.tamper_response = analysis_result.get('tamper_response', '')
         
-        document.content = document.transcription
         db.session.commit()
         logger.info(f"Documentation generated for document ID: {doc_id}")
         

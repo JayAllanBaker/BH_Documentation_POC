@@ -57,19 +57,34 @@ Analyze the transcription and categorize all relevant information into these cat
                 {"role": "user", "content": user_prompt}
             ],
             response_format={ "type": "json_object" },
-            temperature=0.3  # Lower temperature for more consistent responses
+            temperature=0.3
         )
         
-        try:
-            content = response.choices[0].message.content
-            if isinstance(content, str):
-                logger.info("Successfully received and parsed OpenAI response")
-                return json.loads(content)
-            return content
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse OpenAI response: {e}")
-            return {}
-            
+        logger.info("Received response from OpenAI")
+        content = response.choices[0].message.content
+        if isinstance(content, str):
+            try:
+                result = json.loads(content)
+                logger.info("Successfully parsed OpenAI response")
+                # Ensure all required fields exist
+                required_fields = [
+                    'meat_monitor', 'meat_evaluate', 'meat_assess', 'meat_treat',
+                    'tamper_time', 'tamper_action', 'tamper_medical_necessity',
+                    'tamper_plan', 'tamper_education', 'tamper_response'
+                ]
+                for field in required_fields:
+                    if field not in result:
+                        result[field] = ''
+                return result
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse OpenAI response: {e}")
+                return {field: '' for field in required_fields}
+        return content
     except Exception as e:
         logger.error(f"Error in AI analysis: {str(e)}")
-        return {}
+        required_fields = [
+            'meat_monitor', 'meat_evaluate', 'meat_assess', 'meat_treat',
+            'tamper_time', 'tamper_action', 'tamper_medical_necessity',
+            'tamper_plan', 'tamper_education', 'tamper_response'
+        ]
+        return {field: '' for field in required_fields}
