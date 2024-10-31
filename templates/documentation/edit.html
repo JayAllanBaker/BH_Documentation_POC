@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+.delete-btn {
+    display: inline-block !important;
+    visibility: visible !important;
+}
+.btn-group {
+    display: inline-flex !important;
+}
+</style>
+
 <div class="row">
     <div class="col-md-8">
         <form method="POST" action="{{ url_for('documentation.edit', id=doc.id if doc else 0) }}" id="documentForm">
@@ -82,7 +92,7 @@
                 <button type="submit" class="btn btn-primary" id="saveButton">Save Document</button>
                 <a href="{{ url_for('documentation.list') }}" class="btn btn-secondary">Cancel</a>
                 {% if doc and doc.id %}
-                <button type="button" class="btn btn-danger ms-2" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
+                <button type="button" class="btn btn-outline-danger ms-2 delete-btn" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
                     <i class="bi bi-trash"></i> Delete
                 </button>
                 {% endif %}

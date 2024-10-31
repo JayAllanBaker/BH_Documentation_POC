@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+.delete-btn {
+    display: inline-block !important;
+    visibility: visible !important;
+}
+.btn-group {
+    display: inline-flex !important;
+}
+</style>
+
 <div class="row mb-4">
     <div class="col">
         <h2>Clinical Documents</h2>
@@ -29,11 +39,11 @@
                         <td>{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>{{ doc.status }}</td>
                         <td>
-                            <div class="btn-group">
-                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-primary">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
-                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-btn" onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
                                     <i class="bi bi-trash"></i> Delete
                                 </button>
                             </div>
