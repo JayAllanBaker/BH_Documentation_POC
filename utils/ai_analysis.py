@@ -2,12 +2,12 @@ import os
 import openai
 from typing import Dict
 
-openai.api_key = os.environ.get('OPENAI_API_KEY')
-
 def analyze_transcription(transcription: str) -> Dict:
     """
     Analyze medical transcription using OpenAI GPT to categorize content according to MEAT/TAMPER standards.
     """
+    client = openai.OpenAI()
+    
     system_prompt = """You are a medical documentation analyst. Your task is to analyze medical transcriptions and categorize the content according to MEAT (Monitor, Evaluate, Assess, Treat) and TAMPER (Time, Action, Medical Necessity, Plan, Education, Response) standards.
     
     For each category, extract relevant information from the transcription. If no information is found for a category, return an empty string."""
@@ -29,13 +29,12 @@ def analyze_transcription(transcription: str) -> Dict:
     - tamper_response"""
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.3,
             response_format={ "type": "json_object" }
         )
         
