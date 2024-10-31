@@ -35,7 +35,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 main.py"
+args = "python3 app.py"
 waitForPort = 5000
 
 [[workflows.workflow]]
@@ -67,7 +67,7 @@ task = "shell.exec"
 args = "export FLASK_APP=app.py && flask db init && flask db migrate -m 'Update User model with nullable email' && flask db upgrade"
 
 [deployment]
-run = ["sh", "-c", "python3 main.py"]
+run = ["sh", "-c", "python3 app.py"]
 
 [[ports]]
 localPort = 5000
