@@ -3,6 +3,8 @@ class AudioRecorder {
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.isRecording = false;
+        this.recordingTime = 0;
+        this.recordingTimer = null;
         
         this.startButton = document.getElementById('startRecording');
         this.stopButton = document.getElementById('stopRecording');
@@ -14,16 +16,24 @@ class AudioRecorder {
     }
     
     setupStatusIndicator() {
-        // Create status indicator
         this.statusIndicator = document.createElement('div');
         this.statusIndicator.className = 'alert mt-2 d-none';
-        this.startButton.parentNode.insertBefore(this.statusIndicator, this.audioPlayer);
+        const parentNode = this.startButton.closest('.card-body');
+        if (parentNode) {
+            parentNode.insertBefore(this.statusIndicator, this.audioPlayer);
+        }
     }
     
     showStatus(message, type = 'info') {
         this.statusIndicator.className = `alert alert-${type} mt-2`;
         this.statusIndicator.textContent = message;
         this.statusIndicator.classList.remove('d-none');
+    }
+    
+    formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
     
     async initializeButtons() {
@@ -54,7 +64,14 @@ class AudioRecorder {
             this.isRecording = true;
             this.startButton.disabled = true;
             this.stopButton.disabled = false;
-            this.showStatus('Recording in progress...', 'info');
+            
+            // Start recording timer
+            this.recordingTime = 0;
+            this.recordingTimer = setInterval(() => {
+                this.recordingTime++;
+                this.showStatus(`Recording in progress... ${this.formatTime(this.recordingTime)}`, 'info');
+            }, 1000);
+            
         } catch (err) {
             console.error('Error accessing microphone:', err);
             this.showStatus('Error accessing microphone. Please ensure microphone permissions are granted.', 'danger');
@@ -63,6 +80,10 @@ class AudioRecorder {
     
     stopRecording() {
         if (this.mediaRecorder && this.isRecording) {
+            if (this.recordingTimer) {
+                clearInterval(this.recordingTimer);
+                this.recordingTimer = null;
+            }
             this.mediaRecorder.stop();
             this.isRecording = false;
             this.startButton.disabled = false;
@@ -73,16 +94,13 @@ class AudioRecorder {
     
     async handleRecordingComplete() {
         try {
-            // Convert audio chunks to WAV format with proper codec
             const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav; codecs=MS_PCM' });
             const audioUrl = URL.createObjectURL(audioBlob);
             this.audioPlayer.src = audioUrl;
             
-            // Get the current document ID from the URL
             const urlParams = new URLSearchParams(window.location.search);
             const docId = urlParams.get('id');
             
-            // Upload the recording
             const formData = new FormData();
             formData.append('audio', audioBlob, 'recording.wav');
             formData.append('document_id', docId);
@@ -105,7 +123,6 @@ class AudioRecorder {
             
             if (result.transcription) {
                 this.transcriptionDisplay.textContent = result.transcription;
-                // Generate documentation from transcription
                 const docResponse = await fetch('/api/generate-documentation', {
                     method: 'POST',
                     headers: {
@@ -118,7 +135,6 @@ class AudioRecorder {
                     throw new Error('Failed to generate documentation');
                 }
                 
-                // Reload the page to show updated documentation
                 window.location.reload();
             }
         } catch (err) {
@@ -132,4 +148,20 @@ class AudioRecorder {
 
 document.addEventListener('DOMContentLoaded', () => {
     const recorder = new AudioRecorder();
+    const docId = new URLSearchParams(window.location.search).get('id');
+    if (docId) {
+        fetch(`/api/audio/${docId}`)
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+            })
+            .then(blob => {
+                if (blob) {
+                    const audioUrl = URL.createObjectURL(blob);
+                    document.getElementById('audioPlayer').src = audioUrl;
+                }
+            })
+            .catch(console.error);
+    }
 });

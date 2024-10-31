@@ -1,7 +1,7 @@
 import os
 import whisper
 import logging
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import datetime
@@ -29,6 +29,16 @@ def allowed_file(filename):
 def allowed_mimetype(mime_type):
     return mime_type in ALLOWED_MIMETYPES
 
+@audio_bp.route('/api/audio/<int:doc_id>', methods=['GET'])
+@login_required
+def get_audio(doc_id):
+    document = Document.query.get_or_404(doc_id)
+    if document.author_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if not document.recording_path or not os.path.exists(document.recording_path):
+        return jsonify({'error': 'Audio not found'}), 404
+    return send_file(document.recording_path)
+
 @audio_bp.route('/api/upload-audio', methods=['POST'])
 @login_required
 def upload_audio():
@@ -40,10 +50,12 @@ def upload_audio():
         audio_file = request.files['audio']
         doc_id = request.form.get('document_id')
         
-        if not doc_id:
-            logger.error("No document ID provided")
-            return jsonify({'error': 'No document ID provided'}), 400
+        if not doc_id or not doc_id.isdigit():
+            logger.error(f"Invalid document ID: {doc_id}")
+            return jsonify({'error': 'Invalid document ID'}), 400
             
+        doc_id = int(doc_id)
+        
         if not audio_file or not audio_file.filename:
             logger.error("No selected file")
             return jsonify({'error': 'No selected file'}), 400
@@ -59,14 +71,12 @@ def upload_audio():
             logger.info(f"Saving audio file to: {save_path}")
             audio_file.save(save_path)
             
-            # Transcribe the audio
             try:
                 logger.info("Starting audio transcription")
                 result = model.transcribe(save_path)
                 transcription = result["text"]
                 logger.info("Transcription completed successfully")
                 
-                # Update the document with the recording path and transcription
                 document = Document.query.get(doc_id)
                 if document and document.author_id == current_user.id:
                     document.recording_path = save_path
