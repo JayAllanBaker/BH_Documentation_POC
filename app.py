@@ -42,6 +42,7 @@ def index():
 
 with app.app_context():
     import models
+    db.drop_all()
     db.create_all()
 
 @login_manager.user_loader
