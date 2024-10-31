@@ -16,9 +16,11 @@
         <h2>Clinical Documents</h2>
     </div>
     <div class="col text-end">
-        <a href="{{ url_for('documentation.edit', id=0) }}" class="btn btn-primary">New Document</a>
-        <button type="button" class="btn btn-danger" id="bulkDeleteBtn" disabled>
-            Delete Selected
+        <a href="{{ url_for('documentation.edit', id=0) }}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> New Document
+        </a>
+        <button type="button" class="btn btn-danger ms-2" id="bulkDeleteBtn" disabled>
+            <i class="bi bi-trash"></i> Delete Selected
         </button>
     </div>
 </div>
@@ -29,8 +31,10 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>
-                            <input type="checkbox" id="selectAll" class="form-check-input">
+                        <th style="width: 40px;">
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </div>
                         </th>
                         <th>Title</th>
                         <th>Created</th>
@@ -42,17 +46,21 @@
                     {% for doc in documents %}
                     <tr>
                         <td>
-                            <input type="checkbox" class="form-check-input document-checkbox" 
-                                   value="{{ doc.id }}" data-title="{{ doc.title }}">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input document-checkbox" 
+                                       value="{{ doc.id }}" data-title="{{ doc.title }}">
+                            </div>
                         </td>
                         <td>{{ doc.title }}</td>
                         <td>{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>{{ doc.status }}</td>
                         <td>
-                            <a href="{{ url_for('documentation.edit', id=doc.id) }}" 
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
+                            <div class="btn-group">
+                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -159,11 +167,12 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
     
     try {
         deleteButton.disabled = true;
-        showStatus('Deleting document(s)...', 'info');
+        showStatus('Deleting documents...', 'info');
         
-        const response = await fetch(form.action || '/documents/0/delete', {
+        const formData = new FormData(form);
+        const response = await fetch('/documents/delete', {
             method: 'POST',
-            body: new FormData(form),
+            body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -172,7 +181,7 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
         const result = await response.json();
         
         if (!response.ok) {
-            throw new Error(result.error || `Failed to delete document(s): ${response.status}`);
+            throw new Error(result.error || `Failed to delete documents: ${response.status}`);
         }
         
         if (result.success) {
@@ -182,10 +191,10 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
                 window.location.reload();
             }, 1000);
         } else {
-            throw new Error(result.error || 'Failed to delete document(s)');
+            throw new Error(result.error || 'Failed to delete documents');
         }
     } catch (err) {
-        console.error('Error deleting document(s):', err);
+        console.error('Error deleting documents:', err);
         showStatus(`Error: ${err.message}`, 'danger');
         modal.hide();
     } finally {
