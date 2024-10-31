@@ -24,7 +24,8 @@ def edit(id):
         doc = Document(
             title='New Document',
             content='',
-            author_id=current_user.id
+            author_id=current_user.id,
+            status='draft'
         )
         db.session.add(doc)
         try:
@@ -43,20 +44,20 @@ def edit(id):
         
     if request.method == 'POST':
         try:
-            doc.title = request.form['title']
-            doc.content = request.form['content']
+            doc.title = request.form.get('title', '')
+            doc.content = request.form.get('content', '')
             # MEAT fields
-            doc.meat_monitor = request.form['meat_monitor']
-            doc.meat_evaluate = request.form['meat_evaluate']
-            doc.meat_assess = request.form['meat_assess']
-            doc.meat_treat = request.form['meat_treat']
+            doc.meat_monitor = request.form.get('meat_monitor', '')
+            doc.meat_evaluate = request.form.get('meat_evaluate', '')
+            doc.meat_assess = request.form.get('meat_assess', '')
+            doc.meat_treat = request.form.get('meat_treat', '')
             # TAMPER fields
-            doc.tamper_time = request.form['tamper_time']
-            doc.tamper_action = request.form['tamper_action']
-            doc.tamper_medical_necessity = request.form['tamper_medical_necessity']
-            doc.tamper_plan = request.form['tamper_plan']
-            doc.tamper_education = request.form['tamper_education']
-            doc.tamper_response = request.form['tamper_response']
+            doc.tamper_time = request.form.get('tamper_time', '')
+            doc.tamper_action = request.form.get('tamper_action', '')
+            doc.tamper_medical_necessity = request.form.get('tamper_medical_necessity', '')
+            doc.tamper_plan = request.form.get('tamper_plan', '')
+            doc.tamper_education = request.form.get('tamper_education', '')
+            doc.tamper_response = request.form.get('tamper_response', '')
             
             db.session.commit()
             
