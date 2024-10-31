@@ -39,16 +39,27 @@ def register():
         password = request.form.get('password')
         email = request.form.get('email')
         
+        if not username or not password:
+            flash('Username and password are required')
+            return redirect(url_for('auth.register'))
+        
         if User.query.filter_by(username=username).first():
             flash('Username already exists')
             return redirect(url_for('auth.register'))
         
-        user = User(username=username, email=email, role='user')  # Set default role
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        
-        return redirect(url_for('auth.login'))
+        try:
+            user = User(username=username, email=email)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            flash('Registration successful. Please login.')
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Registration error: {str(e)}')
+            flash('An error occurred during registration')
+            return redirect(url_for('auth.register'))
+            
     return render_template('auth/register.html')
 
 @auth_bp.route('/logout')
