@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Documents</h2>
+    <div class="mb-3">
+        <a href="{{ url_for('documents.create_document') }}" class="btn btn-primary">New Document</a>
+    </div>
+    
+    <div class="list-group">
+        {% for document in documents %}
+        <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{ document.title }}</h5>
+                <small>{{ document.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+            {% if document.patient %}
+            <p class="mb-1">Patient: {{ document.patient.family_name }}, {{ document.patient.given_name }}</p>
+            {% endif %}
+            <div class="mt-2">
+                <a href="{{ url_for('documents.view_document', id=document.id) }}" class="btn btn-sm btn-info">View</a>
+                <a href="{{ url_for('documents.edit_document', id=document.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                <form action="{{ url_for('documents.delete_document', id=document.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this document?')">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item">
+            <p class="mb-0">No documents found.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
