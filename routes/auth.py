@@ -39,6 +39,10 @@ def register():
         password = request.form.get('password')
         email = request.form.get('email')
         
+        # Convert empty string to None for email
+        if email == '':
+            email = None
+        
         if not username or not password:
             flash('Username and password are required')
             return redirect(url_for('auth.register'))
