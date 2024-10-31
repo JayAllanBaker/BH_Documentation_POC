@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import Document, db
+from models import Document, Patient, db
 from datetime import datetime
 
 documents_bp = Blueprint('documents', __name__)
@@ -15,12 +15,30 @@ def list_documents():
 @login_required
 def create_document():
     if request.method == 'POST':
-        title = request.form.get('title')
-        document = Document(title=title, user_id=current_user.id)
-        db.session.add(document)
-        db.session.commit()
-        return redirect(url_for('documents.edit_document', id=document.id))
-    return render_template('documents/new.html')
+        try:
+            title = request.form.get('title')
+            patient_id = request.form.get('patient_id')
+            
+            if not title:
+                flash('Title is required', 'danger')
+                return redirect(url_for('documents.create_document'))
+            
+            document = Document(
+                title=title,
+                user_id=current_user.id,
+                patient_id=patient_id if patient_id else None
+            )
+            db.session.add(document)
+            db.session.commit()
+            flash('Document created successfully', 'success')
+            return redirect(url_for('documents.edit_document', id=document.id))
+        except Exception as e:
+            current_app.logger.error(f'Error creating document: {str(e)}')
+            flash('An error occurred while creating the document', 'danger')
+            return redirect(url_for('documents.create_document'))
+            
+    patients = Patient.query.filter_by(active=True).order_by(Patient.family_name).all()
+    return render_template('documents/new.html', patients=patients)
 
 @documents_bp.route('/documents/<int:id>')
 @login_required

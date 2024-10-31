@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2>New Document</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label required-field">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="patient" class="form-label">Patient</label>
+                            <select class="form-select" id="patient" name="patient_id">
+                                <option value="">Select patient (optional)</option>
+                                {% for patient in patients %}
+                                <option value="{{ patient.id }}">{{ patient.family_name }}, {{ patient.given_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Create Document</button>
+                            <a href="{{ url_for('documents.list_documents') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required-field::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: bold;
+    display: inline-block;
+}
+</style>
+{% endblock %}
