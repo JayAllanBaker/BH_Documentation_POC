@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app import db
 from models import Document
@@ -22,7 +22,6 @@ def edit(id):
         )
         db.session.add(doc)
         db.session.commit()
-        flash('Document created successfully')
         return redirect(url_for('documentation.edit', id=doc.id))
         
     doc = Document.query.get_or_404(id)
@@ -48,6 +47,9 @@ def edit(id):
         
         db.session.commit()
         flash('Document updated successfully')
+        # Return JSON response for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'id': doc.id})
         return redirect(url_for('documentation.edit', id=doc.id))
         
     return render_template('documentation/edit.html', doc=doc)

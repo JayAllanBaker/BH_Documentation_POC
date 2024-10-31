@@ -107,5 +107,45 @@
     </div>
 </div>
 
+<script>
+document.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Update URL with document ID if needed
+            const currentUrl = new URL(window.location);
+            if (currentUrl.searchParams.get('id') !== result.id.toString()) {
+                currentUrl.searchParams.set('id', result.id);
+                window.history.pushState({}, '', currentUrl);
+            }
+            // Show success message
+            const flash = document.createElement('div');
+            flash.className = 'alert alert-success';
+            flash.textContent = 'Document saved successfully';
+            document.querySelector('.container').insertBefore(flash, document.querySelector('.row'));
+            setTimeout(() => flash.remove(), 3000);
+        }
+    } catch (err) {
+        console.error('Error saving document:', err);
+        const flash = document.createElement('div');
+        flash.className = 'alert alert-danger';
+        flash.textContent = 'Error saving document';
+        document.querySelector('.container').insertBefore(flash, document.querySelector('.row'));
+    }
+});
+</script>
+
 <script src="{{ url_for('static', filename='js/audio.js') }}"></script>
 {% endblock %}
