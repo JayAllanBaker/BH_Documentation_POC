@@ -6,7 +6,8 @@
         content: " *";
         color: #dc3545;
         font-weight: bold;
-        display: inline-block;
+        display: inline-block !important;
+        margin-left: 2px;
     }
     .form-control.is-invalid {
         border-color: #dc3545;
@@ -221,6 +222,17 @@ document.getElementById('patientForm').addEventListener('submit', function(event
         }
     });
     
+    // Add validation for identifiers
+    const identifierFields = document.querySelectorAll('[name^="identifier_"]');
+    identifierFields.forEach(field => {
+        if (field.required && !field.value) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+
     if (!isValid) {
         event.preventDefault();
         const firstInvalid = this.querySelector('.is-invalid');
