@@ -30,8 +30,8 @@
                         <td>{{ doc.status }}</td>
                         <td>
                             <div class="btn-group" role="group">
-                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-secondary">Edit</a>
-                                <button type="button" class="btn btn-sm btn-danger" 
+                                <a href="{{ url_for('documentation.edit', id=doc.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
                                         onclick="confirmDelete({{ doc.id }}, '{{ doc.title|escape }}')">
                                     Delete
                                 </button>
@@ -66,7 +66,23 @@
     </div>
 </div>
 
+<!-- Status Alert -->
+<div id="statusAlert" class="alert d-none fixed-bottom m-3" role="alert"></div>
+
 <script>
+function showStatus(message, type = 'info') {
+    const alert = document.getElementById('statusAlert');
+    alert.className = `alert alert-${type} fixed-bottom m-3`;
+    alert.textContent = message;
+    alert.classList.remove('d-none');
+    
+    if (type !== 'danger') {
+        setTimeout(() => {
+            alert.classList.add('d-none');
+        }, 3000);
+    }
+}
+
 function confirmDelete(docId, docTitle) {
     const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
     document.getElementById('documentTitle').textContent = docTitle;
@@ -78,8 +94,13 @@ function confirmDelete(docId, docTitle) {
 document.getElementById('deleteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
+    const deleteButton = form.querySelector('button[type="submit"]');
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
     
     try {
+        deleteButton.disabled = true;
+        showStatus('Deleting document...', 'info');
+        
         const response = await fetch(form.action, {
             method: 'POST',
             headers: {
@@ -87,19 +108,28 @@ document.getElementById('deleteForm').addEventListener('submit', async (e) => {
             }
         });
         
+        const result = await response.json();
+        
         if (!response.ok) {
-            throw new Error(`Failed to delete document: ${response.status}`);
+            throw new Error(result.error || `Failed to delete document: ${response.status}`);
         }
         
-        const result = await response.json();
         if (result.success) {
-            window.location.reload();
+            modal.hide();
+            showStatus('Document deleted successfully', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
             throw new Error(result.error || 'Failed to delete document');
         }
     } catch (err) {
         console.error('Error deleting document:', err);
-        alert(`Error deleting document: ${err.message}`);
+        const errorMessage = `Error deleting document: ${err.message}`;
+        showStatus(errorMessage, 'danger');
+        modal.hide();
+    } finally {
+        deleteButton.disabled = false;
     }
 });
 </script>

@@ -3,6 +3,11 @@ from flask_login import login_required, current_user
 from app import db
 from models import Document
 import os
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 docs_bp = Blueprint('documentation', __name__)
 
@@ -46,45 +51,70 @@ def edit(id):
         doc.tamper_education = request.form['tamper_education']
         doc.tamper_response = request.form['tamper_response']
         
-        db.session.commit()
-        flash('Document updated successfully')
-        # Return JSON response for AJAX requests
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': True, 'id': doc.id})
-        return redirect(url_for('documentation.edit', id=doc.id))
+        try:
+            db.session.commit()
+            flash('Document updated successfully')
+            # Return JSON response for AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': True, 'id': doc.id})
+            return redirect(url_for('documentation.edit', id=doc.id))
+        except Exception as e:
+            logger.error(f"Error updating document: {str(e)}")
+            db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Failed to update document'}), 500
+            flash('Error updating document')
+            return redirect(url_for('documentation.edit', id=doc.id))
         
     return render_template('documentation/edit.html', doc=doc)
 
 @docs_bp.route('/documents/<int:id>/delete', methods=['POST'])
 @login_required
 def delete(id):
-    doc = Document.query.get_or_404(id)
-    
-    if doc.author_id != current_user.id:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Unauthorized access'}), 403
-        flash('You do not have permission to delete this document')
-        return redirect(url_for('documentation.list'))
-    
     try:
+        doc = Document.query.get_or_404(id)
+        
+        if doc.author_id != current_user.id:
+            logger.warning(f"Unauthorized deletion attempt for document {id} by user {current_user.id}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'You do not have permission to delete this document'}), 403
+            flash('You do not have permission to delete this document')
+            return redirect(url_for('documentation.list'))
+        
         # Delete associated audio file if it exists
-        if doc.recording_path and os.path.exists(doc.recording_path):
-            os.remove(doc.recording_path)
+        if doc.recording_path:
+            try:
+                if os.path.exists(doc.recording_path):
+                    os.remove(doc.recording_path)
+            except OSError as e:
+                logger.error(f"Error deleting audio file: {str(e)}")
+                # Continue with document deletion even if audio file deletion fails
         
         # Delete the document from database
         db.session.delete(doc)
         db.session.commit()
         
+        logger.info(f"Document {id} deleted successfully by user {current_user.id}")
+        
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': True})
+            return jsonify({
+                'success': True,
+                'message': 'Document deleted successfully'
+            })
             
         flash('Document deleted successfully')
         return redirect(url_for('documentation.list'))
         
     except Exception as e:
+        logger.error(f"Error deleting document {id}: {str(e)}")
         db.session.rollback()
+        
+        error_message = 'An error occurred while deleting the document'
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': str(e)}), 500
+            return jsonify({
+                'error': error_message,
+                'details': str(e)
+            }), 500
             
-        flash(f'Error deleting document: {str(e)}')
+        flash(error_message)
         return redirect(url_for('documentation.list'))
