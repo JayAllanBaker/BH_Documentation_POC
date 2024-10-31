@@ -28,6 +28,12 @@ class AudioRecorder {
         this.statusIndicator.className = `alert alert-${type} mt-2`;
         this.statusIndicator.textContent = message;
         this.statusIndicator.classList.remove('d-none');
+        
+        if (type !== 'danger') {
+            setTimeout(() => {
+                this.statusIndicator.classList.add('d-none');
+            }, 3000);
+        }
     }
     
     formatTime(seconds) {
@@ -44,6 +50,8 @@ class AudioRecorder {
     async startRecording() {
         try {
             console.log('Starting recording process');
+            this.showStatus('Requesting microphone access...', 'info');
+            
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.mediaRecorder = new MediaRecorder(stream);
             
@@ -53,10 +61,15 @@ class AudioRecorder {
                 }
             };
             
-            this.mediaRecorder.onstop = () => this.handleRecordingComplete();
+            this.mediaRecorder.onstop = () => this.handleRecordingComplete().catch(error => {
+                console.error('Error in handleRecordingComplete:', error);
+                this.showStatus('Error processing recording: ' + error.message, 'danger');
+            });
+            
             this.mediaRecorder.onerror = (event) => {
                 console.error('MediaRecorder error:', event.error);
-                this.showStatus('Error during recording. Please try again.', 'danger');
+                this.showStatus('Error during recording: ' + event.error.message, 'danger');
+                this.resetRecordingState();
             };
             
             this.mediaRecorder.start();
@@ -74,7 +87,18 @@ class AudioRecorder {
             console.log('Recording started successfully');
         } catch (err) {
             console.error('Error accessing microphone:', err);
-            this.showStatus('Error accessing microphone. Please ensure microphone permissions are granted.', 'danger');
+            this.showStatus('Error accessing microphone: ' + err.message, 'danger');
+            this.resetRecordingState();
+        }
+    }
+    
+    resetRecordingState() {
+        this.isRecording = false;
+        this.startButton.disabled = false;
+        this.stopButton.disabled = true;
+        if (this.recordingTimer) {
+            clearInterval(this.recordingTimer);
+            this.recordingTimer = null;
         }
     }
     
@@ -86,6 +110,7 @@ class AudioRecorder {
                 this.recordingTimer = null;
             }
             this.mediaRecorder.stop();
+            this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
             this.isRecording = false;
             this.startButton.disabled = false;
             this.stopButton.disabled = true;
@@ -122,8 +147,8 @@ class AudioRecorder {
             });
             
             if (!response.ok) {
-                const result = await response.json();
-                throw new Error(result.error || 'Upload failed');
+                const result = await response.json().catch(() => ({ error: 'Network response was not ok' }));
+                throw new Error(result.error || `HTTP error! status: ${response.status}`);
             }
             
             const result = await response.json();
@@ -169,6 +194,7 @@ class AudioRecorder {
         } catch (err) {
             console.error('Error:', err);
             this.showStatus(`Error: ${err.message}`, 'danger');
+            throw err; // Re-throw to trigger the error handler in startRecording
         }
     }
 }
@@ -176,13 +202,14 @@ class AudioRecorder {
 document.addEventListener('DOMContentLoaded', () => {
     const recorder = new AudioRecorder();
     const docId = new URLSearchParams(window.location.search).get('id');
+    
     if (docId && docId !== '0' && docId !== 'null') {
         fetch(`/api/audio/${docId}`)
             .then(response => {
-                if (response.ok) {
-                    return response.blob();
+                if (!response.ok) {
+                    throw new Error('Failed to fetch audio');
                 }
-                throw new Error('Failed to fetch audio');
+                return response.blob();
             })
             .then(blob => {
                 if (blob) {
@@ -192,6 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error fetching audio:', error);
+                recorder.showStatus('Error loading previous recording', 'warning');
             });
     }
 });
+</script>
