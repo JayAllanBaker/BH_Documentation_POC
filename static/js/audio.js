@@ -125,7 +125,6 @@ class AudioRecorder {
             const audioUrl = URL.createObjectURL(audioBlob);
             this.audioPlayer.src = audioUrl;
             
-            // Get document ID from URL path instead of search params
             const docId = window.location.pathname.split('/')[2];
             console.log('Document ID from path:', docId);
             
@@ -175,7 +174,6 @@ class AudioRecorder {
                 if (analysisResult.success) {
                     this.showStatus('MEAT/TAMPER analysis complete! Updating fields...', 'success');
                     
-                    // Update all MEAT/TAMPER fields with the analysis results
                     for (const [key, value] of Object.entries(analysisResult.analysis)) {
                         const field = document.getElementById(key);
                         if (field) {
@@ -193,7 +191,7 @@ class AudioRecorder {
         } catch (err) {
             console.error('Error:', err);
             this.showStatus(`Error: ${err.message}`, 'danger');
-            throw err; // Re-throw to trigger the error handler in startRecording
+            throw err;
         }
     }
 }
@@ -206,7 +204,11 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(`/api/audio/${docId}`)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Failed to fetch audio');
+                    if (response.status === 404) {
+                        // No audio yet, this is normal for new documents
+                        return null;
+                    }
+                    throw new Error(`Failed to fetch audio: ${response.status}`);
                 }
                 return response.blob();
             })
@@ -218,7 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error fetching audio:', error);
-                recorder.showStatus('Error loading previous recording', 'warning');
+                if (!error.message.includes('404')) {
+                    recorder.showStatus('Error loading previous recording', 'warning');
+                }
             });
     }
 });

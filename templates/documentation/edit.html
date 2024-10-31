@@ -109,7 +109,6 @@
 </div>
 
 <script>
-// Function to show status messages
 function showStatus(message, type = 'info') {
     const statusDiv = document.getElementById('saveStatus');
     statusDiv.className = `alert alert-${type} mt-2`;
@@ -144,17 +143,22 @@ document.getElementById('documentForm').addEventListener('submit', async (e) => 
             }
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        let result;
+        try {
+            result = await response.json();
+        } catch (err) {
+            throw new Error('Invalid server response');
         }
         
-        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || `Failed to save document: ${response.status}`);
+        }
+        
         if (result.success) {
             // Update URL with document ID if needed
             const currentUrl = new URL(window.location);
-            if (currentUrl.searchParams.get('id') !== result.id.toString()) {
-                currentUrl.searchParams.set('id', result.id);
-                window.history.pushState({}, '', currentUrl);
+            if (currentUrl.pathname.split('/')[2] !== result.id.toString()) {
+                window.history.pushState({}, '', `/documents/${result.id}/edit`);
             }
             showStatus('Document saved successfully', 'success');
         } else {
