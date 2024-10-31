@@ -13,8 +13,11 @@ app.config['SECRET_KEY'] = os.urandom(24)
 
 # Modify DATABASE_URL to handle SSL requirements
 database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgresql://'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url + "?sslmode=require"
+if database_url:
+    # Remove any existing sslmode parameter
+    if '?' in database_url:
+        database_url = database_url.split('?')[0]
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url + '?sslmode=require'
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
