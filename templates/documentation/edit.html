@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ doc.title if doc else '' }}" required>
+            </div>
+            
+            <div class="card mb-3">
+                <div class="card-header">
+                    MEAT Documentation
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="meat_monitor" class="form-label">Monitor</label>
+                        <textarea class="form-control" id="meat_monitor" name="meat_monitor" rows="3">{{ doc.meat_monitor if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="meat_evaluate" class="form-label">Evaluate</label>
+                        <textarea class="form-control" id="meat_evaluate" name="meat_evaluate" rows="3">{{ doc.meat_evaluate if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="meat_assess" class="form-label">Assess</label>
+                        <textarea class="form-control" id="meat_assess" name="meat_assess" rows="3">{{ doc.meat_assess if doc else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="meat_treat" class="form-label">Treat</label>
+                        <textarea class="form-control" id="meat_treat" name="meat_treat" rows="3">{{ doc.meat_treat if doc else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="content" class="form-label">Additional Notes</label>
+                <textarea class="form-control" id="content" name="content" rows="5">{{ doc.content if doc else '' }}</textarea>
+            </div>
+            
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Save Document</button>
+                <a href="{{ url_for('documentation.list') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                Audio Recording
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button id="startRecording" class="btn btn-success">Start Recording</button>
+                    <button id="stopRecording" class="btn btn-danger" disabled>Stop Recording</button>
+                </div>
+                <audio id="audioPlayer" controls class="w-100"></audio>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/audio.js') }}"></script>
+{% endblock %}
