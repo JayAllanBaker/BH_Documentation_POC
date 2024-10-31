@@ -7,19 +7,42 @@ from routes.auth import auth_bp
 from routes.documents import documents_bp
 from routes.patients import patients_bp
 from routes.main import main_bp
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 
-# Modify DATABASE_URL to handle SSL requirements
+# Configure database with SSL
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
-    # Remove any existing sslmode parameter
-    if '?' in database_url:
-        database_url = database_url.split('?')[0]
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url + '?sslmode=prefer'
+    # Parse the existing URL
+    parsed = urlparse(database_url)
+    
+    # Get existing query parameters
+    params = parse_qs(parsed.query)
+    
+    # Update SSL parameters
+    params.update({
+        'sslmode': ['require'],
+        'connect_timeout': ['30']
+    })
+    
+    # Create new query string
+    query = urlencode(params, doseq=True)
+    
+    # Reconstruct URL with new query parameters
+    new_url = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        query,
+        parsed.fragment
+    ))
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = new_url
 else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///app.db"  # Fallback for development
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
