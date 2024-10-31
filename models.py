@@ -45,6 +45,14 @@ class Document(db.Model):
     meat_treatment = db.Column(db.Text)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=True)
 
+class PatientIdentifier(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    identifier_type = db.Column(db.String(50), nullable=False)  # e.g., 'Claim', 'Medicare', 'Medicaid'
+    identifier_value = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # FHIR Identifier
@@ -73,3 +81,4 @@ class Patient(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     # Relationships
     documents = db.relationship('Document', backref='patient', lazy=True)
+    identifiers = db.relationship('PatientIdentifier', backref='patient', lazy=True, cascade='all, delete-orphan')

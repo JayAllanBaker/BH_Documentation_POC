@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_required
-from models import Patient, db
+from models import Patient, PatientIdentifier, db
 from datetime import datetime
 
 patients_bp = Blueprint('patients', __name__)
@@ -42,11 +42,11 @@ def create_patient():
                     postal_code=request.form.get('postal_code'),
                     country=request.form.get('country'))
             
-            # Check for duplicate identifier with improved error message
+            # Check for duplicate identifier
             existing_patient = Patient.query.filter_by(identifier=identifier).first()
             if existing_patient:
                 flash(f'Patient ID {identifier} already exists. Please use a different ID.', 'danger')
-                return render_template('patients/new.html',
+                return render_template('patients/new.html', 
                     form_errors=True,
                     identifier=identifier,
                     family_name=family_name,
@@ -99,7 +99,23 @@ def create_patient():
                 country=request.form.get('country')
             )
             
+            # Add the patient first to get the ID
             db.session.add(patient)
+            db.session.flush()
+
+            # Handle additional identifiers
+            identifier_types = request.form.getlist('identifier_types[]')
+            identifier_values = request.form.getlist('identifier_values[]')
+            
+            for type_, value in zip(identifier_types, identifier_values):
+                if type_ and value:
+                    patient_identifier = PatientIdentifier(
+                        patient_id=patient.id,
+                        identifier_type=type_,
+                        identifier_value=value
+                    )
+                    db.session.add(patient_identifier)
+
             db.session.commit()
             current_app.logger.info(f'Patient created successfully: {identifier}')
             flash('Patient created successfully', 'success')
@@ -149,6 +165,7 @@ def edit_patient(id):
                     flash('Invalid date format', 'danger')
                     return render_template('patients/edit.html', patient=patient)
 
+            # Update patient basic info
             patient.identifier = request.form.get('identifier')
             patient.family_name = request.form.get('family_name')
             patient.given_name = request.form.get('given_name')
@@ -161,6 +178,23 @@ def edit_patient(id):
             patient.state = request.form.get('state')
             patient.postal_code = request.form.get('postal_code')
             patient.country = request.form.get('country')
+
+            # Handle identifiers
+            # First, remove all existing identifiers
+            PatientIdentifier.query.filter_by(patient_id=patient.id).delete()
+
+            # Then add the new ones
+            identifier_types = request.form.getlist('identifier_types[]')
+            identifier_values = request.form.getlist('identifier_values[]')
+            
+            for type_, value in zip(identifier_types, identifier_values):
+                if type_ and value:
+                    patient_identifier = PatientIdentifier(
+                        patient_id=patient.id,
+                        identifier_type=type_,
+                        identifier_value=value
+                    )
+                    db.session.add(patient_identifier)
             
             db.session.commit()
             current_app.logger.info(f'Patient updated successfully: {patient.identifier}')
