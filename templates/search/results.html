@@ -1,5 +1,27 @@
 {% extends "base.html" %}
 
+{% block head %}
+<!-- HTQL Suggestions CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/htql-suggestions.css') }}">
+<style>
+/* Fallback styles in case CSS fails to load */
+.suggestions-list-fallback {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1050;
+    margin-top: 2px;
+    padding: 0.5rem 0;
+    list-style: none;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -11,7 +33,7 @@
                                value="{{ query }}" 
                                placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)"
                                autocomplete="off">
-                        <div id="htqlLoadingIndicator" class="position-absolute top-50 end-0 translate-middle-y pe-3" style="display: none;">
+                        <div id="htqlLoadingIndicator" class="position-absolute top-50 end-0 translate-middle-y pe-3 d-none">
                             <div class="spinner-border spinner-border-sm text-primary" role="status">
                                 <span class="visually-hidden">Loading suggestions...</span>
                             </div>
@@ -108,28 +130,55 @@
 </div>
 {% endblock %}
 
-{% block head %}
-<!-- HTQL Suggestions CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/htql-suggestions.css') }}">
-{% endblock %}
-
 {% block scripts %}
 <!-- Initialize HTQL suggestions after DOM is loaded -->
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
-window.addEventListener('load', function() {
-    console.log('Window loaded, initializing search suggestions');
-    try {
-        const searchInput = document.getElementById('htqlSearch');
-        if (searchInput) {
-            console.log('Search input found, creating HTQLSuggestions instance');
-            window.htqlSuggestions = new HTQLSuggestions(searchInput);
-        } else {
-            console.error('Search input element not found');
+(function() {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    function initializeSuggestions() {
+        console.log('Attempting to initialize HTQL suggestions (attempt ' + (retryCount + 1) + ')');
+        try {
+            const searchInput = document.getElementById('htqlSearch');
+            if (searchInput) {
+                console.log('Search input found, creating HTQLSuggestions instance');
+                if (!window.htqlSuggestions) {
+                    window.htqlSuggestions = new HTQLSuggestions(searchInput);
+                    console.log('HTQLSuggestions initialized successfully');
+                }
+            } else {
+                console.error('Search input element not found');
+                retryInitialization();
+            }
+        } catch (error) {
+            console.error('Error initializing HTQL suggestions:', error);
+            retryInitialization();
         }
-    } catch (error) {
-        console.error('Error initializing HTQL suggestions:', error);
     }
-});
+
+    function retryInitialization() {
+        if (retryCount < maxRetries) {
+            retryCount++;
+            console.log('Retrying initialization in 100ms...');
+            setTimeout(initializeSuggestions, 100);
+        } else {
+            console.error('Failed to initialize HTQL suggestions after ' + maxRetries + ' attempts');
+            // Apply fallback styling
+            const searchInput = document.getElementById('htqlSearch');
+            if (searchInput) {
+                searchInput.parentElement.classList.add('suggestions-list-fallback');
+            }
+        }
+    }
+
+    // Start initialization after DOM is fully loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSuggestions);
+    } else {
+        initializeSuggestions();
+    }
+})();
 </script>
 {% endblock %}
