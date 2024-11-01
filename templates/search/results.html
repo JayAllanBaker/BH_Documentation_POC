@@ -14,7 +14,7 @@
     border: 1px solid #ced4da;
     border-radius: 0.375rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 1050;
+    z-index: 9999;
     margin-top: 2px;
     padding: 0.5rem 0;
     list-style: none;
@@ -28,7 +28,7 @@
         <div class="col-md-8 offset-md-2">
             <form action="{{ url_for('search.search') }}" method="GET" class="mb-4">
                 <div class="input-group">
-                    <div class="flex-grow-1 position-relative">
+                    <div class="position-relative flex-grow-1">
                         <input type="text" name="q" class="form-control" id="htqlSearch"
                                value="{{ query }}" 
                                placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)"
@@ -38,6 +38,7 @@
                                 <span class="visually-hidden">Loading suggestions...</span>
                             </div>
                         </div>
+                        <!-- Suggestions will be inserted here -->
                     </div>
                     <select name="type" class="form-select" style="max-width: 150px;">
                         <option value="all" {% if search_type == 'all' %}selected{% endif %}>All</option>
@@ -71,7 +72,6 @@
             {% endif %}
             
             {% if query %}
-            <!-- Search results section -->
             <div class="mb-4">
                 <h4>Search Results for "{{ query }}"</h4>
                 <hr>
@@ -132,6 +132,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script>console.log('Loading HTQL suggestions script');</script>
 <!-- Initialize HTQL suggestions -->
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>

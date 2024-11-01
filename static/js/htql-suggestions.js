@@ -11,6 +11,8 @@ class HTQLSuggestions {
         this.selectedIndex = -1;
         this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
         this.debounceTimeout = null;
+        this.retryCount = 0;
+        this.maxRetries = 3;
 
         // Initialize field mappings
         this.fields = {
@@ -34,55 +36,76 @@ class HTQLSuggestions {
         };
         this.operators = ['AND', 'OR', 'NOT'];
 
-        this.setupEventListeners();
-        console.log('HTQLSuggestions initialized successfully');
+        this.initializeSuggestions();
     }
 
-    setupEventListeners() {
-        console.log('Setting up event listeners');
+    initializeSuggestions() {
+        console.log('Attempting to initialize suggestions (attempt ' + (this.retryCount + 1) + ')');
         try {
             // Create suggestions container
             this.suggestionsList = document.createElement('ul');
+            this.suggestionsList.id = 'htqlSuggestionsList';
             this.suggestionsList.className = 'suggestions-list d-none';
-            console.log('Created suggestions list element');
+            console.log('Created suggestions list:', this.suggestionsList);
+
+            if (!this.suggestionsList) {
+                console.error('Failed to create suggestions list');
+                this.retryInitialization();
+                return;
+            }
 
             // Set up input container
             const wrapper = document.createElement('div');
             wrapper.className = 'htql-input-wrapper';
+            
+            // Insert wrapper and move input into it
             this.input.parentNode.insertBefore(wrapper, this.input);
             wrapper.appendChild(this.input);
             wrapper.appendChild(this.suggestionsList);
             console.log('Set up input wrapper and positioned elements');
 
-            // Input event with debouncing
-            this.input.addEventListener('input', () => {
-                console.log('Input event fired');
-                this.showLoadingIndicator();
-                clearTimeout(this.debounceTimeout);
-                this.debounceTimeout = setTimeout(() => {
-                    this.handleInput();
-                }, 150);
-            });
-
-            // Keyboard navigation
-            this.input.addEventListener('keydown', (e) => {
-                console.log('Keydown event fired:', e.key);
-                this.handleKeydown(e);
-            });
-
-            // Click outside to close
-            document.addEventListener('click', (e) => {
-                if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
-                    console.log('Clicking outside, hiding suggestions');
-                    this.hideSuggestions();
-                }
-            });
-
-            console.log('Event listeners setup completed');
+            this.setupEventListeners();
+            console.log('HTQLSuggestions initialized successfully');
         } catch (error) {
-            console.error('Error setting up event listeners:', error);
-            throw error;
+            console.error('Error initializing suggestions:', error);
+            this.retryInitialization();
         }
+    }
+
+    retryInitialization() {
+        if (this.retryCount < this.maxRetries) {
+            this.retryCount++;
+            console.log('Retrying initialization in 100ms...');
+            setTimeout(() => this.initializeSuggestions(), 100);
+        } else {
+            console.error('Failed to initialize suggestions after ' + this.maxRetries + ' attempts');
+        }
+    }
+
+    setupEventListeners() {
+        // Input event with debouncing
+        this.input.addEventListener('input', () => {
+            console.log('Input event fired');
+            this.showLoadingIndicator();
+            clearTimeout(this.debounceTimeout);
+            this.debounceTimeout = setTimeout(() => {
+                this.handleInput();
+            }, 150);
+        });
+
+        // Keyboard navigation
+        this.input.addEventListener('keydown', (e) => {
+            console.log('Keydown event fired:', e.key);
+            this.handleKeydown(e);
+        });
+
+        // Click outside to close
+        document.addEventListener('click', (e) => {
+            if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
+                console.log('Clicking outside, hiding suggestions');
+                this.hideSuggestions();
+            }
+        });
     }
 
     showLoadingIndicator() {
@@ -188,9 +211,15 @@ class HTQLSuggestions {
     }
 
     showSuggestions() {
+        if (!this.suggestionsList) {
+            console.error('Suggestions list element not found');
+            return;
+        }
+
         console.log('Showing suggestions');
+        this.selectedIndex = -1;
+        
         try {
-            this.selectedIndex = -1;
             this.suggestionsList.innerHTML = this.currentSuggestions
                 .map((suggestion, index) => `
                     <li class="suggestion-item" data-index="${index}">
@@ -230,6 +259,8 @@ class HTQLSuggestions {
     }
 
     hideSuggestions() {
+        if (!this.suggestionsList) return;
+        
         console.log('Hiding suggestions');
         this.suggestionsList.classList.remove('show');
         this.suggestionsList.classList.add('d-none');
@@ -238,6 +269,8 @@ class HTQLSuggestions {
     }
 
     updateSelection() {
+        if (!this.suggestionsList) return;
+
         const items = this.suggestionsList.querySelectorAll('.suggestion-item');
         items.forEach((item, index) => {
             if (index === this.selectedIndex) {
