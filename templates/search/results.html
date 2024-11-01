@@ -6,9 +6,10 @@
         <div class="col-md-8 offset-md-2">
             <form action="{{ url_for('search.search') }}" method="GET" class="mb-4">
                 <div class="input-group">
-                    <input type="text" name="q" class="form-control" 
+                    <input type="text" name="q" class="form-control" id="htqlSearch"
                            value="{{ query }}" 
-                           placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)">
+                           placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)"
+                           autocomplete="off">
                     <select name="type" class="form-select" style="max-width: 150px;">
                         <option value="all" {% if search_type == 'all' %}selected{% endif %}>All</option>
                         <option value="patients" {% if search_type == 'patients' %}selected{% endif %}>Patients</option>
@@ -36,6 +37,7 @@
                     <li>Document: title, content, transcription</li>
                     <li>Condition: code, status, severity</li>
                 </ul>
+                <p class="mb-0"><strong>Pro tip:</strong> Use Tab or Enter to complete suggestions. Arrow keys to navigate suggestions.</p>
             </div>
             {% endif %}
             
@@ -97,4 +99,15 @@
         </div>
     </div>
 </div>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/htql-suggestions.css') }}">
+<script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('htqlSearch');
+    if (searchInput) {
+        new HTQLSuggestions(searchInput);
+    }
+});
+</script>
 {% endblock %}
