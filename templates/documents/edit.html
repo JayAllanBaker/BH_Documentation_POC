@@ -34,6 +34,29 @@
                     <small class="text-muted">Click Start Recording to begin capturing audio</small>
                 </div>
 
+                <!-- Progress Indicators -->
+                <div id="recordingIndicator" class="alert alert-info" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <strong>Recording in progress...</strong>
+                        <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                    </div>
+                </div>
+
+                <div id="uploadingIndicator" class="alert alert-info" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <strong>Processing audio...</strong>
+                        <div class="progress w-100 ms-2">
+                            <div id="uploadProgress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="transcriptionIndicator" class="alert alert-success" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <strong>Transcription complete!</strong>
+                    </div>
+                </div>
+
                 <div class="mb-3">
                     <label for="transcription" class="form-label">Transcription</label>
                     <textarea class="form-control" id="transcription" name="transcription" rows="4" readonly>{{ document.transcription }}</textarea>
@@ -96,14 +119,15 @@ document.getElementById('startRecording').addEventListener('click', async () => 
         };
 
         mediaRecorder.onstop = async () => {
-            console.log("Starting recording upload process");
+            document.getElementById('uploadingIndicator').style.display = 'block';
+            document.getElementById('recordingIndicator').style.display = 'none';
+            document.getElementById('transcriptionIndicator').style.display = 'none';
+            
             const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
             const formData = new FormData();
             
-            // Get document ID from the current URL
             const pathParts = window.location.pathname.split('/');
             const documentId = pathParts[pathParts.indexOf('documents') + 1];
-            console.log("Document ID from path:", documentId);
             
             formData.append('audio', audioBlob);
             
@@ -113,18 +137,38 @@ document.getElementById('startRecording').addEventListener('click', async () => 
                     body: formData
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
-                console.log("Upload successful:", result);
                 
                 if (result.transcription) {
-                    console.log("Transcription received:", result.transcription);
                     document.getElementById('transcription').value = result.transcription;
+                    document.getElementById('uploadingIndicator').style.display = 'none';
+                    document.getElementById('transcriptionIndicator').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('transcriptionIndicator').style.display = 'none';
+                    }, 3000);
                 }
             } catch (error) {
                 console.error("Error uploading audio:", error);
+                document.getElementById('uploadingIndicator').style.display = 'none';
+                // Show error message to user
+                const errorAlert = document.createElement('div');
+                errorAlert.className = 'alert alert-danger';
+                errorAlert.textContent = 'Error processing audio. Please try again.';
+                document.querySelector('.card-body').insertBefore(errorAlert, document.getElementById('documentForm'));
+                setTimeout(() => errorAlert.remove(), 5000);
             }
             
             audioChunks = [];
+        };
+
+        mediaRecorder.onstart = () => {
+            document.getElementById('recordingIndicator').style.display = 'block';
+            document.getElementById('uploadingIndicator').style.display = 'none';
+            document.getElementById('transcriptionIndicator').style.display = 'none';
         };
 
         mediaRecorder.start();
@@ -143,6 +187,38 @@ document.getElementById('stopRecording').addEventListener('click', () => {
     mediaRecorder.stream.getTracks().forEach(track => track.stop());
     document.getElementById('startRecording').style.display = 'block';
     document.getElementById('stopRecording').style.display = 'none';
+});
+
+document.getElementById('documentForm').addEventListener('submit', async function(event) {
+    event.preventDefault();
+    
+    const submitButton = this.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    
+    try {
+        const formData = new FormData(this);
+        const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        window.location.href = response.url;
+    } catch (error) {
+        console.error('Error updating document:', error);
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-danger';
+        errorAlert.textContent = 'Error saving document. Please try again.';
+        this.insertBefore(errorAlert, submitButton);
+        setTimeout(() => errorAlert.remove(), 5000);
+        
+        submitButton.disabled = false;
+        submitButton.textContent = 'Save Changes';
+    }
 });
 </script>
 {% endblock %}
