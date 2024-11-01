@@ -139,7 +139,11 @@ document.getElementById('startRecording').addEventListener('click', async () => 
             formData.append('audio', audioBlob, 'recording.wav');
             
             try {
-                const response = await fetch(`/documents/${document.id}/upload-audio`, {
+                // Get document ID from URL path
+                const pathParts = window.location.pathname.split('/');
+                const documentId = pathParts[pathParts.indexOf('documents') + 1];
+                
+                const response = await fetch(`/documents/${documentId}/upload-audio`, {
                     method: 'POST',
                     body: formData
                 });
@@ -162,7 +166,7 @@ document.getElementById('startRecording').addEventListener('click', async () => 
                 document.getElementById('uploadingIndicator').style.display = 'none';
                 const errorAlert = document.createElement('div');
                 errorAlert.className = 'alert alert-danger';
-                errorAlert.textContent = 'Error processing audio. Please try again.';
+                errorAlert.textContent = `Error processing audio: ${error.message}. Please try again.`;
                 document.querySelector('.card-body').insertBefore(errorAlert, document.getElementById('documentForm'));
                 setTimeout(() => errorAlert.remove(), 5000);
             }
@@ -216,7 +220,7 @@ document.getElementById('documentForm').addEventListener('submit', async functio
         console.error('Error updating document:', error);
         const errorAlert = document.createElement('div');
         errorAlert.className = 'alert alert-danger';
-        errorAlert.textContent = 'Error saving document. Please try again.';
+        errorAlert.textContent = `Error saving document: ${error.message}. Please try again.`;
         this.insertBefore(errorAlert, submitButton);
         setTimeout(() => errorAlert.remove(), 5000);
         
