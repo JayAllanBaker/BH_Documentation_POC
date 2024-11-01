@@ -7,6 +7,13 @@
     display: block !important;
     position: absolute !important;
     z-index: 99999 !important;
+    background: white;
+    border: 1px solid #ced4da;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 2px;
+    padding: 0;
 }
 </style>
 {% endblock %}
@@ -126,19 +133,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) {
         console.log('Initializing HTQLSuggestions');
         window.htqlSuggestions = new HTQLSuggestions(searchInput);
-        
-        // Verify initialization
-        if (window.htqlSuggestions) {
-            console.log('Successfully initialized suggestions');
-            
-            // Test suggestions
-            searchInput.value = 'patient.';
-            searchInput.dispatchEvent(new Event('input'));
-            
-            // Verify suggestions list exists
-            const suggestionsList = document.querySelector('.suggestions-list');
-            console.log('Suggestions list element:', suggestionsList);
-        }
     }
 });
 </script>
