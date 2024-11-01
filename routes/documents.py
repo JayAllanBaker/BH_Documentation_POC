@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import Document, Patient, db
+from models import Document, Patient, Condition, db
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
@@ -73,6 +73,47 @@ def analyze_meat_criteria(text):
         }
     except Exception as e:
         current_app.logger.error(f'MEAT analysis error: {str(e)}')
+        return None
+
+def extract_conditions(text):
+    client = openai.OpenAI()
+    
+    prompt = '''Extract medical conditions from the following transcription.
+    For each condition, provide:
+    1. ICD-10 or SNOMED CT code
+    2. Clinical description
+    3. Body site (if applicable)
+    4. Severity (mild/moderate/severe if mentioned)
+
+    Transcription:
+    {text}
+
+    Return the response in JSON format with an array of conditions:
+    [
+        {{
+            "code": "ICD-10 or SNOMED code",
+            "code_system": "ICD-10" or "SNOMED-CT",
+            "description": "condition description",
+            "body_site": "affected body part",
+            "severity": "mild/moderate/severe"
+        }},
+        ...
+    ]'''
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a medical coding specialist extracting and coding conditions from clinical notes."},
+                {"role": "user", "content": prompt.format(text=text)}
+            ]
+        )
+        
+        # Parse the response text as JSON
+        conditions = json.loads(response.choices[0].message.content)
+        return conditions
+    except Exception as e:
+        current_app.logger.error(f'Condition extraction error: {str(e)}')
         return None
 
 @documents_bp.route('/documents')
@@ -193,12 +234,38 @@ def upload_audio(id):
                 document.meat_evaluation = meat_analysis.get('evaluation', '')
                 document.meat_treatment = meat_analysis.get('treatment', '')
 
+            # Extract and create conditions if document is linked to a patient
+            conditions_created = []
+            if document.patient_id:
+                conditions = extract_conditions(transcript)
+                if conditions:
+                    for condition_data in conditions:
+                        condition = Condition(
+                            identifier=Condition.generate_identifier(),
+                            clinical_status='active',
+                            category='encounter-diagnosis',
+                            code=condition_data.get('code'),
+                            code_system=condition_data.get('code_system'),
+                            body_site=condition_data.get('body_site'),
+                            severity=condition_data.get('severity'),
+                            patient_id=document.patient_id,
+                            onset_date=datetime.utcnow().date(),
+                            notes=condition_data.get('description')
+                        )
+                        db.session.add(condition)
+                        conditions_created.append({
+                            'code': condition.code,
+                            'description': condition.notes,
+                            'severity': condition.severity
+                        })
+
             db.session.commit()
             return jsonify({
                 'status': 'success',
                 'filename': filename,
                 'transcription': transcript,
-                'meat_analysis': meat_analysis
+                'meat_analysis': meat_analysis,
+                'conditions_created': conditions_created
             })
         except Exception as e:
             current_app.logger.error(f'Transcription error: {str(e)}')
