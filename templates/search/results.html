@@ -128,11 +128,29 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
+console.log('Search page loaded');
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing search');
     const searchInput = document.getElementById('htqlSearch');
     if (searchInput) {
-        console.log('Initializing HTQLSuggestions');
+        console.log('Found search input:', searchInput);
+        // Create wrapper div for proper positioning
+        const wrapper = document.createElement('div');
+        wrapper.className = 'position-relative w-100';
+        wrapper.style.cssText = 'z-index: 1050;';
+        searchInput.parentNode.insertBefore(wrapper, searchInput);
+        wrapper.appendChild(searchInput);
+        
+        // Initialize suggestions
         window.htqlSuggestions = new HTQLSuggestions(searchInput);
+        
+        // Test initialization
+        searchInput.value = 'patient.';
+        searchInput.dispatchEvent(new Event('input'));
+        console.log('Search initialized:', window.htqlSuggestions);
+    } else {
+        console.error('Search input not found');
     }
 });
 </script>
