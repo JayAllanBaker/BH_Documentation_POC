@@ -6,10 +6,17 @@
         <div class="col-md-8 offset-md-2">
             <form action="{{ url_for('search.search') }}" method="GET" class="mb-4">
                 <div class="input-group">
-                    <input type="text" name="q" class="form-control" id="htqlSearch"
-                           value="{{ query }}" 
-                           placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)"
-                           autocomplete="off">
+                    <div class="flex-grow-1 position-relative">
+                        <input type="text" name="q" class="form-control" id="htqlSearch"
+                               value="{{ query }}" 
+                               placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)"
+                               autocomplete="off">
+                        <div id="htqlLoadingIndicator" class="position-absolute top-50 end-0 translate-middle-y pe-3" style="display: none;">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading suggestions...</span>
+                            </div>
+                        </div>
+                    </div>
                     <select name="type" class="form-select" style="max-width: 150px;">
                         <option value="all" {% if search_type == 'all' %}selected{% endif %}>All</option>
                         <option value="patients" {% if search_type == 'patients' %}selected{% endif %}>Patients</option>
@@ -99,21 +106,29 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- Load CSS first -->
+{% block head %}
+<!-- HTQL Suggestions CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/htql-suggestions.css') }}">
+{% endblock %}
 
-<!-- Initialize suggestions after DOM is loaded -->
+{% block scripts %}
+<!-- Initialize HTQL suggestions after DOM is loaded -->
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing search suggestions');
-    const searchInput = document.getElementById('htqlSearch');
-    if (searchInput) {
-        console.log('Search input found, creating HTQLSuggestions instance');
-        new HTQLSuggestions(searchInput);
-    } else {
-        console.error('Search input not found');
+window.addEventListener('load', function() {
+    console.log('Window loaded, initializing search suggestions');
+    try {
+        const searchInput = document.getElementById('htqlSearch');
+        if (searchInput) {
+            console.log('Search input found, creating HTQLSuggestions instance');
+            window.htqlSuggestions = new HTQLSuggestions(searchInput);
+        } else {
+            console.error('Search input element not found');
+        }
+    } catch (error) {
+        console.error('Error initializing HTQL suggestions:', error);
     }
 });
 </script>

@@ -5,6 +5,10 @@ class HTQLSuggestions {
         this.suggestionsList = null;
         this.currentSuggestions = [];
         this.selectedIndex = -1;
+        this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
+        this.debounceTimeout = null;
+        
+        // Initialize field mappings
         this.fields = {
             'patient': {
                 'name': 'Search patient names',
@@ -27,97 +31,120 @@ class HTQLSuggestions {
         this.operators = ['AND', 'OR', 'NOT'];
         
         this.setupEventListeners();
-        console.log('HTQLSuggestions initialized');
+        console.log('HTQLSuggestions initialized successfully');
     }
 
     setupEventListeners() {
         console.log('Setting up event listeners');
-        
-        // Create suggestions container
-        this.suggestionsList = document.createElement('ul');
-        this.suggestionsList.className = 'suggestions-list d-none';
-        
-        // Find the input's container (the input-group div)
-        const inputGroup = this.input.closest('.input-group');
-        if (!inputGroup) {
-            console.error('Could not find input-group container');
-            return;
-        }
-        
-        // Create a wrapper div for proper positioning
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'relative';
-        wrapper.style.flex = '1';
-        
-        // Move input to wrapper
-        this.input.parentNode.insertBefore(wrapper, this.input);
-        wrapper.appendChild(this.input);
-        wrapper.appendChild(this.suggestionsList);
+        try {
+            // Create suggestions container
+            this.suggestionsList = document.createElement('ul');
+            this.suggestionsList.className = 'suggestions-list d-none';
+            
+            // Create wrapper for proper positioning
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.flex = '1';
+            
+            // Insert wrapper and move input into it
+            this.input.parentNode.insertBefore(wrapper, this.input);
+            wrapper.appendChild(this.input);
+            wrapper.appendChild(this.suggestionsList);
 
-        this.input.addEventListener('input', () => {
-            console.log('Input event fired');
-            this.handleInput();
-        });
-        
-        this.input.addEventListener('keydown', (e) => {
-            console.log('Keydown event fired:', e.key);
-            this.handleKeydown(e);
-        });
-        
-        document.addEventListener('click', (e) => {
-            if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
-                console.log('Clicking outside, hiding suggestions');
-                this.hideSuggestions();
-            }
-        });
+            // Input event with debouncing
+            this.input.addEventListener('input', () => {
+                console.log('Input event fired');
+                this.showLoadingIndicator();
+                clearTimeout(this.debounceTimeout);
+                this.debounceTimeout = setTimeout(() => {
+                    this.handleInput();
+                }, 150);
+            });
+            
+            // Keyboard navigation
+            this.input.addEventListener('keydown', (e) => {
+                console.log('Keydown event fired:', e.key);
+                this.handleKeydown(e);
+            });
+            
+            // Click outside to close
+            document.addEventListener('click', (e) => {
+                if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
+                    console.log('Clicking outside, hiding suggestions');
+                    this.hideSuggestions();
+                }
+            });
+
+            console.log('Event listeners setup completed');
+        } catch (error) {
+            console.error('Error setting up event listeners:', error);
+        }
+    }
+
+    showLoadingIndicator() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.style.display = 'block';
+        }
+    }
+
+    hideLoadingIndicator() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.style.display = 'none';
+        }
     }
 
     handleInput() {
-        const cursorPosition = this.input.selectionStart;
-        const inputValue = this.input.value;
-        const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
-        const currentToken = tokens[tokens.length - 1] || '';
-        
-        console.log('Current token:', currentToken);
+        try {
+            const cursorPosition = this.input.selectionStart;
+            const inputValue = this.input.value;
+            const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
+            const currentToken = tokens[tokens.length - 1] || '';
+            
+            console.log('Processing input:', { currentToken, tokens });
 
-        if (currentToken.includes('.')) {
-            // Suggesting field values
-            const [category, field] = currentToken.split('.');
-            if (this.fields[category]) {
-                this.currentSuggestions = Object.keys(this.fields[category])
-                    .filter(f => !field || f.startsWith(field))
-                    .map(f => `${category}.${f}`);
+            if (currentToken.includes('.')) {
+                // Suggesting field values
+                const [category, field] = currentToken.split('.');
+                if (this.fields[category]) {
+                    this.currentSuggestions = Object.keys(this.fields[category])
+                        .filter(f => !field || f.toLowerCase().startsWith(field.toLowerCase()))
+                        .map(f => `${category}.${f}`);
+                }
+            } else if (currentToken.includes(':')) {
+                // Suggesting values based on field type
+                const [field, value] = currentToken.split(':');
+                if (field.includes('gender')) {
+                    this.currentSuggestions = ['male', 'female', 'other']
+                        .filter(v => !value || v.startsWith(value.toLowerCase()))
+                        .map(v => `${field}:${v}`);
+                } else if (field.includes('status')) {
+                    this.currentSuggestions = ['active', 'inactive', 'resolved']
+                        .filter(v => !value || v.startsWith(value.toLowerCase()))
+                        .map(v => `${field}:${v}`);
+                } else if (field.includes('severity')) {
+                    this.currentSuggestions = ['mild', 'moderate', 'severe']
+                        .filter(v => !value || v.startsWith(value.toLowerCase()))
+                        .map(v => `${field}:${v}`);
+                }
+            } else {
+                // Suggesting categories or operators
+                const suggestions = [...Object.keys(this.fields), ...this.operators];
+                this.currentSuggestions = suggestions.filter(s => 
+                    !currentToken || s.toLowerCase().startsWith(currentToken.toLowerCase())
+                );
             }
-        } else if (currentToken.includes(':')) {
-            // Suggesting values based on field type
-            const [field, value] = currentToken.split(':');
-            if (field.includes('gender')) {
-                this.currentSuggestions = ['male', 'female', 'other']
-                    .filter(v => !value || v.startsWith(value.toLowerCase()))
-                    .map(v => `${field}:${v}`);
-            } else if (field.includes('status')) {
-                this.currentSuggestions = ['active', 'inactive', 'resolved']
-                    .filter(v => !value || v.startsWith(value.toLowerCase()))
-                    .map(v => `${field}:${v}`);
-            } else if (field.includes('severity')) {
-                this.currentSuggestions = ['mild', 'moderate', 'severe']
-                    .filter(v => !value || v.startsWith(value.toLowerCase()))
-                    .map(v => `${field}:${v}`);
-            }
-        } else {
-            // Suggesting categories or operators
-            const suggestions = [...Object.keys(this.fields), ...this.operators];
-            this.currentSuggestions = suggestions.filter(s => 
-                !currentToken || s.toLowerCase().startsWith(currentToken.toLowerCase())
-            );
-        }
 
-        console.log('Current suggestions:', this.currentSuggestions);
-        
-        if (this.currentSuggestions.length > 0) {
-            this.showSuggestions();
-        } else {
-            this.hideSuggestions();
+            console.log('Generated suggestions:', this.currentSuggestions);
+            
+            if (this.currentSuggestions.length > 0) {
+                this.showSuggestions();
+            } else {
+                this.hideSuggestions();
+            }
+        } catch (error) {
+            console.error('Error handling input:', error);
+        } finally {
+            this.hideLoadingIndicator();
         }
     }
 
@@ -153,43 +180,49 @@ class HTQLSuggestions {
     }
 
     showSuggestions() {
-        console.log('Showing suggestions');
-        this.selectedIndex = -1;
-        this.suggestionsList.innerHTML = this.currentSuggestions
-            .map((suggestion, index) => `
-                <li class="suggestion-item" data-index="${index}">
-                    ${suggestion}
-                    ${this.getDescription(suggestion)}
-                </li>
-            `)
-            .join('');
+        try {
+            console.log('Showing suggestions');
+            this.selectedIndex = -1;
+            this.suggestionsList.innerHTML = this.currentSuggestions
+                .map((suggestion, index) => `
+                    <li class="suggestion-item" data-index="${index}">
+                        ${suggestion}
+                        ${this.getDescription(suggestion)}
+                    </li>
+                `)
+                .join('');
 
-        this.suggestionsList.classList.remove('d-none');
-        
-        // Add click handlers to suggestions
-        this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const index = parseInt(item.dataset.index);
-                this.applySuggestion(this.currentSuggestions[index]);
+            this.suggestionsList.classList.remove('d-none');
+            this.suggestionsList.classList.add('show');
+            
+            // Add click handlers to suggestions
+            this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const index = parseInt(item.dataset.index);
+                    this.applySuggestion(this.currentSuggestions[index]);
+                });
+                item.addEventListener('mouseenter', () => {
+                    this.selectedIndex = parseInt(item.dataset.index);
+                    this.updateSelection();
+                });
             });
-            item.addEventListener('mouseenter', () => {
-                this.selectedIndex = parseInt(item.dataset.index);
-                this.updateSelection();
-            });
-        });
+        } catch (error) {
+            console.error('Error showing suggestions:', error);
+        }
     }
 
     getDescription(suggestion) {
         if (suggestion.includes('.')) {
             const [category, field] = suggestion.split('.');
             return this.fields[category][field] ? 
-                `<small class="text-muted"> - ${this.fields[category][field]}</small>` : '';
+                `<small> - ${this.fields[category][field]}</small>` : '';
         }
         return '';
     }
 
     hideSuggestions() {
         console.log('Hiding suggestions');
+        this.suggestionsList.classList.remove('show');
         this.suggestionsList.classList.add('d-none');
         this.currentSuggestions = [];
         this.selectedIndex = -1;
@@ -200,6 +233,8 @@ class HTQLSuggestions {
         items.forEach((item, index) => {
             if (index === this.selectedIndex) {
                 item.classList.add('selected');
+                // Ensure selected item is visible in viewport
+                item.scrollIntoView({ block: 'nearest' });
             } else {
                 item.classList.remove('selected');
             }
@@ -207,22 +242,26 @@ class HTQLSuggestions {
     }
 
     applySuggestion(suggestion) {
-        console.log('Applying suggestion:', suggestion);
-        const cursorPosition = this.input.selectionStart;
-        const inputValue = this.input.value;
-        const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
-        const beforeLastToken = tokens.slice(0, -1).join(' ');
-        const afterCursor = inputValue.substring(cursorPosition);
-        
-        this.input.value = beforeLastToken + 
-            (beforeLastToken ? ' ' : '') + 
-            suggestion + 
-            (afterCursor.startsWith(' ') ? '' : ' ') + 
-            afterCursor;
+        try {
+            console.log('Applying suggestion:', suggestion);
+            const cursorPosition = this.input.selectionStart;
+            const inputValue = this.input.value;
+            const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
+            const beforeLastToken = tokens.slice(0, -1).join(' ');
+            const afterCursor = inputValue.substring(cursorPosition);
             
-        const newPosition = (beforeLastToken ? beforeLastToken + ' ' : '').length + suggestion.length + 1;
-        this.input.setSelectionRange(newPosition, newPosition);
-        this.hideSuggestions();
-        this.input.focus();
+            this.input.value = beforeLastToken + 
+                (beforeLastToken ? ' ' : '') + 
+                suggestion + 
+                (afterCursor.startsWith(' ') ? '' : ' ') + 
+                afterCursor;
+                
+            const newPosition = (beforeLastToken ? beforeLastToken + ' ' : '').length + suggestion.length + 1;
+            this.input.setSelectionRange(newPosition, newPosition);
+            this.hideSuggestions();
+            this.input.focus();
+        } catch (error) {
+            console.error('Error applying suggestion:', error);
+        }
     }
 }
