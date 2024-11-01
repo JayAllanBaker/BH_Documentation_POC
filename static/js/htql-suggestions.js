@@ -1,13 +1,17 @@
 class HTQLSuggestions {
     constructor(inputElement) {
         console.log('Initializing HTQLSuggestions');
+        if (!inputElement) {
+            throw new Error('Input element is required');
+        }
+
         this.input = inputElement;
         this.suggestionsList = null;
         this.currentSuggestions = [];
         this.selectedIndex = -1;
         this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
         this.debounceTimeout = null;
-        
+
         // Initialize field mappings
         this.fields = {
             'patient': {
@@ -29,7 +33,7 @@ class HTQLSuggestions {
             }
         };
         this.operators = ['AND', 'OR', 'NOT'];
-        
+
         this.setupEventListeners();
         console.log('HTQLSuggestions initialized successfully');
     }
@@ -40,16 +44,15 @@ class HTQLSuggestions {
             // Create suggestions container
             this.suggestionsList = document.createElement('ul');
             this.suggestionsList.className = 'suggestions-list d-none';
-            
-            // Create wrapper for proper positioning
+            console.log('Created suggestions list element');
+
+            // Set up input container
             const wrapper = document.createElement('div');
-            wrapper.style.position = 'relative';
-            wrapper.style.flex = '1';
-            
-            // Insert wrapper and move input into it
+            wrapper.className = 'htql-input-wrapper';
             this.input.parentNode.insertBefore(wrapper, this.input);
             wrapper.appendChild(this.input);
             wrapper.appendChild(this.suggestionsList);
+            console.log('Set up input wrapper and positioned elements');
 
             // Input event with debouncing
             this.input.addEventListener('input', () => {
@@ -60,13 +63,13 @@ class HTQLSuggestions {
                     this.handleInput();
                 }, 150);
             });
-            
+
             // Keyboard navigation
             this.input.addEventListener('keydown', (e) => {
                 console.log('Keydown event fired:', e.key);
                 this.handleKeydown(e);
             });
-            
+
             // Click outside to close
             document.addEventListener('click', (e) => {
                 if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
@@ -78,33 +81,36 @@ class HTQLSuggestions {
             console.log('Event listeners setup completed');
         } catch (error) {
             console.error('Error setting up event listeners:', error);
+            throw error;
         }
     }
 
     showLoadingIndicator() {
         if (this.loadingIndicator) {
-            this.loadingIndicator.style.display = 'block';
+            this.loadingIndicator.classList.remove('d-none');
         }
     }
 
     hideLoadingIndicator() {
         if (this.loadingIndicator) {
-            this.loadingIndicator.style.display = 'none';
+            this.loadingIndicator.classList.add('d-none');
         }
     }
 
     handleInput() {
+        console.log('Handling input event');
         try {
             const cursorPosition = this.input.selectionStart;
             const inputValue = this.input.value;
             const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
             const currentToken = tokens[tokens.length - 1] || '';
-            
+
             console.log('Processing input:', { currentToken, tokens });
 
             if (currentToken.includes('.')) {
                 // Suggesting field values
                 const [category, field] = currentToken.split('.');
+                console.log('Processing category.field suggestion:', { category, field });
                 if (this.fields[category]) {
                     this.currentSuggestions = Object.keys(this.fields[category])
                         .filter(f => !field || f.toLowerCase().startsWith(field.toLowerCase()))
@@ -113,6 +119,7 @@ class HTQLSuggestions {
             } else if (currentToken.includes(':')) {
                 // Suggesting values based on field type
                 const [field, value] = currentToken.split(':');
+                console.log('Processing field:value suggestion:', { field, value });
                 if (field.includes('gender')) {
                     this.currentSuggestions = ['male', 'female', 'other']
                         .filter(v => !value || v.startsWith(value.toLowerCase()))
@@ -128,6 +135,7 @@ class HTQLSuggestions {
                 }
             } else {
                 // Suggesting categories or operators
+                console.log('Processing category/operator suggestions');
                 const suggestions = [...Object.keys(this.fields), ...this.operators];
                 this.currentSuggestions = suggestions.filter(s => 
                     !currentToken || s.toLowerCase().startsWith(currentToken.toLowerCase())
@@ -180,8 +188,8 @@ class HTQLSuggestions {
     }
 
     showSuggestions() {
+        console.log('Showing suggestions');
         try {
-            console.log('Showing suggestions');
             this.selectedIndex = -1;
             this.suggestionsList.innerHTML = this.currentSuggestions
                 .map((suggestion, index) => `
@@ -194,7 +202,8 @@ class HTQLSuggestions {
 
             this.suggestionsList.classList.remove('d-none');
             this.suggestionsList.classList.add('show');
-            
+            console.log('Suggestions list shown');
+
             // Add click handlers to suggestions
             this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
                 item.addEventListener('click', () => {
@@ -233,7 +242,6 @@ class HTQLSuggestions {
         items.forEach((item, index) => {
             if (index === this.selectedIndex) {
                 item.classList.add('selected');
-                // Ensure selected item is visible in viewport
                 item.scrollIntoView({ block: 'nearest' });
             } else {
                 item.classList.remove('selected');
@@ -242,20 +250,20 @@ class HTQLSuggestions {
     }
 
     applySuggestion(suggestion) {
+        console.log('Applying suggestion:', suggestion);
         try {
-            console.log('Applying suggestion:', suggestion);
             const cursorPosition = this.input.selectionStart;
             const inputValue = this.input.value;
             const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
             const beforeLastToken = tokens.slice(0, -1).join(' ');
             const afterCursor = inputValue.substring(cursorPosition);
-            
+
             this.input.value = beforeLastToken + 
                 (beforeLastToken ? ' ' : '') + 
                 suggestion + 
                 (afterCursor.startsWith(' ') ? '' : ' ') + 
                 afterCursor;
-                
+
             const newPosition = (beforeLastToken ? beforeLastToken + ' ' : '').length + suggestion.length + 1;
             this.input.setSelectionRange(newPosition, newPosition);
             this.hideSuggestions();

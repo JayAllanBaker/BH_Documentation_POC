@@ -1,18 +1,20 @@
 .suggestions-list {
+    display: block !important;
     position: absolute;
-    top: calc(100% + 2px);
+    top: 100%;
     left: 0;
     right: 0;
     max-height: 300px;
     overflow-y: auto;
-    background-color: var(--bs-body-bg, #ffffff);
-    border: 1px solid var(--bs-border-color, #ced4da);
-    border-radius: var(--bs-border-radius, 0.375rem);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     z-index: 1050;
-    margin: 0;
-    padding: 0.25rem 0;
+    margin-top: 2px;
+    padding: 0.5rem 0;
     list-style: none;
+    opacity: 1;
 }
 
 .suggestion-item {
@@ -38,16 +40,11 @@
 }
 
 /* Loading indicator styles */
-.htql-loading {
+#htqlLoadingIndicator {
     position: absolute;
     right: 0.75rem;
     top: 50%;
     transform: translateY(-50%);
-}
-
-/* Hide suggestions list when d-none class is applied */
-.suggestions-list.d-none {
-    display: none !important;
 }
 
 /* Ensure suggestions list is visible above other elements */
@@ -55,14 +52,17 @@
     z-index: 3;
 }
 
-/* Smooth transitions */
-.suggestions-list {
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+/* Handle suggestion list visibility */
+.suggestions-list.d-none {
+    display: none !important;
 }
 
 .suggestions-list.show {
-    opacity: 1;
-    transform: translateY(0);
+    display: block !important;
+}
+
+/* Input wrapper positioning */
+.htql-input-wrapper {
+    position: relative;
+    flex: 1;
 }

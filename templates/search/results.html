@@ -71,6 +71,7 @@
             {% endif %}
             
             {% if query %}
+            <!-- Search results section -->
             <div class="mb-4">
                 <h4>Search Results for "{{ query }}"</h4>
                 <hr>
@@ -131,54 +132,23 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Initialize HTQL suggestions after DOM is loaded -->
+<!-- Initialize HTQL suggestions -->
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
-(function() {
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    function initializeSuggestions() {
-        console.log('Attempting to initialize HTQL suggestions (attempt ' + (retryCount + 1) + ')');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing HTQL suggestions');
+    const searchInput = document.getElementById('htqlSearch');
+    if (searchInput) {
+        console.log('Search input found, creating HTQLSuggestions instance');
         try {
-            const searchInput = document.getElementById('htqlSearch');
-            if (searchInput) {
-                console.log('Search input found, creating HTQLSuggestions instance');
-                if (!window.htqlSuggestions) {
-                    window.htqlSuggestions = new HTQLSuggestions(searchInput);
-                    console.log('HTQLSuggestions initialized successfully');
-                }
-            } else {
-                console.error('Search input element not found');
-                retryInitialization();
-            }
+            window.htqlSuggestions = new HTQLSuggestions(searchInput);
+            console.log('HTQLSuggestions initialized successfully');
         } catch (error) {
-            console.error('Error initializing HTQL suggestions:', error);
-            retryInitialization();
+            console.error('Error initializing HTQLSuggestions:', error);
         }
-    }
-
-    function retryInitialization() {
-        if (retryCount < maxRetries) {
-            retryCount++;
-            console.log('Retrying initialization in 100ms...');
-            setTimeout(initializeSuggestions, 100);
-        } else {
-            console.error('Failed to initialize HTQL suggestions after ' + maxRetries + ' attempts');
-            // Apply fallback styling
-            const searchInput = document.getElementById('htqlSearch');
-            if (searchInput) {
-                searchInput.parentElement.classList.add('suggestions-list-fallback');
-            }
-        }
-    }
-
-    // Start initialization after DOM is fully loaded
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeSuggestions);
     } else {
-        initializeSuggestions();
+        console.error('Search input element not found');
     }
-})();
+});
 </script>
 {% endblock %}
