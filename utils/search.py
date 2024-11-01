@@ -2,7 +2,7 @@ from sqlalchemy import or_, and_, not_
 from models import Patient, Document, Condition
 import re
 
-class JQLParser:
+class HTQLParser:
     def __init__(self):
         self.operators = {
             'AND': and_,
@@ -48,7 +48,7 @@ class JQLParser:
         return field_parts, value.strip('"')
 
     def build_filter(self, query):
-        """Build SQLAlchemy filter from JIRA-like query"""
+        """Build SQLAlchemy filter from HTQL query"""
         tokens = self.tokenize(query)
         filters = []
         current_operator = 'AND'
@@ -108,16 +108,16 @@ class JQLParser:
         return filters[0] if filters else None
 
 def search_patients(query):
-    """Search patients using JIRA-like query"""
-    parser = JQLParser()
+    """Search patients using HTQL query"""
+    parser = HTQLParser()
     filter_condition = parser.build_filter(query)
     if filter_condition is not None:
         return Patient.query.filter(filter_condition).all()
     return Patient.query.all()
 
 def search_documents(query):
-    """Search documents using JIRA-like query"""
-    parser = JQLParser()
+    """Search documents using HTQL query"""
+    parser = HTQLParser()
     filter_condition = parser.build_filter(query)
     if filter_condition is not None:
         return Document.query.filter(filter_condition).all()

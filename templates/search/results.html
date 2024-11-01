@@ -8,7 +8,7 @@
                 <div class="input-group">
                     <input type="text" name="q" class="form-control" 
                            value="{{ query }}" 
-                           placeholder="Search using JIRA-like queries (e.g., patient.name:John AND condition.status:active)">
+                           placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)">
                     <select name="type" class="form-select" style="max-width: 150px;">
                         <option value="all" {% if search_type == 'all' %}selected{% endif %}>All</option>
                         <option value="patients" {% if search_type == 'patients' %}selected{% endif %}>Patients</option>
@@ -20,8 +20,8 @@
             
             {% if not query %}
             <div class="alert alert-info">
-                <h5>Search Tips:</h5>
-                <p>Use JIRA-like query syntax to search. Examples:</p>
+                <h5>Health Trixss Query Language (HTQL) Tips:</h5>
+                <p>Use HTQL syntax to perform advanced searches. Examples:</p>
                 <ul>
                     <li><code>patient.name:John</code> - Search for patients named John</li>
                     <li><code>document.title:"Progress Note"</code> - Search for documents with "Progress Note" in title</li>
