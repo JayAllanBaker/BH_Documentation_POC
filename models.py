@@ -82,3 +82,13 @@ class Patient(db.Model):
     # Relationships
     documents = db.relationship('Document', backref='patient', lazy=True)
     identifiers = db.relationship('PatientIdentifier', backref='patient', lazy=True, cascade='all, delete-orphan')
+
+    @staticmethod
+    def generate_identifier():
+        # Get the latest patient ID and increment it
+        latest_patient = Patient.query.order_by(Patient.id.desc()).first()
+        if latest_patient:
+            next_id = latest_patient.id + 1
+        else:
+            next_id = 1
+        return f'P{next_id:06d}'  # Format: P000001, P000002, etc.

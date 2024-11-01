@@ -53,15 +53,6 @@
 
                     <form method="POST" id="patientForm" novalidate>
                         <div class="mb-3">
-                            <label for="identifier" class="form-label required-field">Primary ID</label>
-                            <input type="text" class="form-control {% if form_errors and not identifier %}is-invalid{% endif %}" 
-                                   id="identifier" name="identifier" required value="{{ identifier or '' }}">
-                            {% if form_errors and not identifier %}
-                                <div class="invalid-feedback">Primary ID is required</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
                             <label class="form-label">Additional Identifiers</label>
                             <div id="identifiers-container">
                                 <!-- Dynamic identifiers will be added here -->

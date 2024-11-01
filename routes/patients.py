@@ -17,38 +17,17 @@ def create_patient():
     if request.method == 'POST':
         try:
             # Get form data
-            identifier = request.form.get('identifier')
             family_name = request.form.get('family_name')
             given_name = request.form.get('given_name')
             gender = request.form.get('gender')
             birth_date_str = request.form.get('birth_date')
             
             # Validate required fields
-            form_errors = not all([identifier, family_name, given_name, gender, birth_date_str])
+            form_errors = not all([family_name, given_name, gender, birth_date_str])
             if form_errors:
                 flash('Please fill in all required fields', 'danger')
                 return render_template('patients/new.html', 
                     form_errors=True,
-                    identifier=identifier,
-                    family_name=family_name,
-                    given_name=given_name,
-                    gender=gender,
-                    birth_date=birth_date_str,
-                    phone=request.form.get('phone'),
-                    email=request.form.get('email'),
-                    address_line=request.form.get('address_line'),
-                    city=request.form.get('city'),
-                    state=request.form.get('state'),
-                    postal_code=request.form.get('postal_code'),
-                    country=request.form.get('country'))
-            
-            # Check for duplicate identifier
-            existing_patient = Patient.query.filter_by(identifier=identifier).first()
-            if existing_patient:
-                flash(f'Patient ID {identifier} already exists. Please use a different ID.', 'danger')
-                return render_template('patients/new.html', 
-                    form_errors=True,
-                    identifier=identifier,
                     family_name=family_name,
                     given_name=given_name,
                     gender=gender,
@@ -70,7 +49,6 @@ def create_patient():
                 flash('Invalid date format', 'danger')
                 return render_template('patients/new.html', 
                     form_errors=True,
-                    identifier=identifier,
                     family_name=family_name,
                     given_name=given_name,
                     gender=gender,
@@ -83,9 +61,9 @@ def create_patient():
                     postal_code=request.form.get('postal_code'),
                     country=request.form.get('country'))
 
-            # Create new patient
+            # Create new patient with auto-generated identifier
             patient = Patient(
-                identifier=identifier,
+                identifier=Patient.generate_identifier(),
                 family_name=family_name,
                 given_name=given_name,
                 gender=gender,
@@ -117,7 +95,7 @@ def create_patient():
                     db.session.add(patient_identifier)
 
             db.session.commit()
-            current_app.logger.info(f'Patient created successfully: {identifier}')
+            current_app.logger.info(f'Patient created successfully: {patient.identifier}')
             flash('Patient created successfully', 'success')
             return redirect(url_for('patients.list_patients'))
             
@@ -127,7 +105,6 @@ def create_patient():
             flash('An error occurred while creating the patient', 'danger')
             return render_template('patients/new.html', 
                 form_errors=True,
-                identifier=identifier,
                 family_name=family_name,
                 given_name=given_name,
                 gender=gender,
@@ -166,7 +143,6 @@ def edit_patient(id):
                     return render_template('patients/edit.html', patient=patient)
 
             # Update patient basic info
-            patient.identifier = request.form.get('identifier')
             patient.family_name = request.form.get('family_name')
             patient.given_name = request.form.get('given_name')
             patient.gender = request.form.get('gender')

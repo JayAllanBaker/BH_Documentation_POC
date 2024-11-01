@@ -5,8 +5,42 @@ from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
 import openai
+import json
 
 documents_bp = Blueprint('documents', __name__)
+
+def analyze_meat_criteria(text):
+    client = openai.OpenAI()
+    
+    prompt = '''Analyze the following medical transcription and categorize the content into MEAT criteria:
+    
+    Transcription:
+    {text}
+    
+    Please categorize the content into:
+    1. Monitoring: Vital signs, physical findings, symptoms, behaviors
+    2. Assessment: Current clinical assessment, diagnosis updates
+    3. Evaluation: Test results, responses to treatment
+    4. Treatment: Medications, therapies, procedures, changes in treatment
+
+    Format the response as JSON with these fields:
+    monitoring, assessment, evaluation, treatment'''
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a medical documentation assistant analyzing clinical notes for MEAT criteria."},
+                {"role": "user", "content": prompt.format(text=text)}
+            ],
+            response_format={ "type": "json_object" }
+        )
+        
+        result = json.loads(response.choices[0].message.content)
+        return result
+    except Exception as e:
+        current_app.logger.error(f'MEAT analysis error: {str(e)}')
+        return None
 
 @documents_bp.route('/documents')
 @login_required
@@ -118,11 +152,20 @@ def upload_audio(id):
                 )
                 document.transcription = transcript
 
+            # Perform MEAT analysis on the transcription
+            meat_analysis = analyze_meat_criteria(transcript)
+            if meat_analysis:
+                document.meat_monitoring = meat_analysis.get('monitoring', '')
+                document.meat_assessment = meat_analysis.get('assessment', '')
+                document.meat_evaluation = meat_analysis.get('evaluation', '')
+                document.meat_treatment = meat_analysis.get('treatment', '')
+
             db.session.commit()
             return jsonify({
                 'status': 'success',
                 'filename': filename,
-                'transcription': transcript
+                'transcription': transcript,
+                'meat_analysis': meat_analysis
             })
         except Exception as e:
             current_app.logger.error(f'Transcription error: {str(e)}')
