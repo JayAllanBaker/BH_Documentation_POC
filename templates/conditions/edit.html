@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Edit Condition</h2>
+                    <p class="text-muted mb-0">Patient: {{ condition.patient.family_name }}, {{ condition.patient.given_name }}</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="clinical_status" class="form-label required-field">Clinical Status</label>
+                            <select class="form-select" id="clinical_status" name="clinical_status" required>
+                                <option value="">Select status</option>
+                                <option value="active" {% if condition.clinical_status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="recurrence" {% if condition.clinical_status == 'recurrence' %}selected{% endif %}>Recurrence</option>
+                                <option value="relapse" {% if condition.clinical_status == 'relapse' %}selected{% endif %}>Relapse</option>
+                                <option value="inactive" {% if condition.clinical_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                                <option value="remission" {% if condition.clinical_status == 'remission' %}selected{% endif %}>Remission</option>
+                                <option value="resolved" {% if condition.clinical_status == 'resolved' %}selected{% endif %}>Resolved</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="verification_status" class="form-label">Verification Status</label>
+                            <select class="form-select" id="verification_status" name="verification_status">
+                                <option value="">Select status</option>
+                                <option value="unconfirmed" {% if condition.verification_status == 'unconfirmed' %}selected{% endif %}>Unconfirmed</option>
+                                <option value="provisional" {% if condition.verification_status == 'provisional' %}selected{% endif %}>Provisional</option>
+                                <option value="differential" {% if condition.verification_status == 'differential' %}selected{% endif %}>Differential</option>
+                                <option value="confirmed" {% if condition.verification_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                <option value="refuted" {% if condition.verification_status == 'refuted' %}selected{% endif %}>Refuted</option>
+                                <option value="entered-in-error" {% if condition.verification_status == 'entered-in-error' %}selected{% endif %}>Entered in Error</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Select category</option>
+                                <option value="problem-list-item" {% if condition.category == 'problem-list-item' %}selected{% endif %}>Problem List Item</option>
+                                <option value="encounter-diagnosis" {% if condition.category == 'encounter-diagnosis' %}selected{% endif %}>Encounter Diagnosis</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="severity" class="form-label">Severity</label>
+                            <select class="form-select" id="severity" name="severity">
+                                <option value="">Select severity</option>
+                                <option value="mild" {% if condition.severity == 'mild' %}selected{% endif %}>Mild</option>
+                                <option value="moderate" {% if condition.severity == 'moderate' %}selected{% endif %}>Moderate</option>
+                                <option value="severe" {% if condition.severity == 'severe' %}selected{% endif %}>Severe</option>
+                            </select>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="code" class="form-label">Condition Code</label>
+                                <input type="text" class="form-control" id="code" name="code" value="{{ condition.code or '' }}" placeholder="e.g., J45.909">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="code_system" class="form-label">Code System</label>
+                                <input type="text" class="form-control" id="code_system" name="code_system" value="{{ condition.code_system or '' }}" placeholder="e.g., http://snomed.info/sct">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="body_site" class="form-label">Body Site</label>
+                            <input type="text" class="form-control" id="body_site" name="body_site" value="{{ condition.body_site or '' }}">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="onset_date" class="form-label">Onset Date</label>
+                                <input type="date" class="form-control" id="onset_date" name="onset_date" value="{{ condition.onset_date.strftime('%Y-%m-%d') if condition.onset_date }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="onset_string" class="form-label">Onset Description</label>
+                                <input type="text" class="form-control" id="onset_string" name="onset_string" value="{{ condition.onset_string or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="abatement_date" class="form-label">Abatement Date</label>
+                                <input type="date" class="form-control" id="abatement_date" name="abatement_date" value="{{ condition.abatement_date.strftime('%Y-%m-%d') if condition.abatement_date }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="abatement_string" class="form-label">Abatement Description</label>
+                                <input type="text" class="form-control" id="abatement_string" name="abatement_string" value="{{ condition.abatement_string or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3">{{ condition.notes or '' }}</textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Update Condition</button>
+                            <a href="{{ url_for('conditions.list_conditions', patient_id=condition.patient_id) }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required-field::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: bold;
+    display: inline-block;
+}
+</style>
+{% endblock %}

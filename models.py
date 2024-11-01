@@ -23,7 +23,7 @@ class User(UserMixin, db.Model):
     def set_password(self, password):
         if not password:
             raise ValueError('Password cannot be empty')
-        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         if not password or not self.password_hash:
@@ -82,6 +82,7 @@ class Patient(db.Model):
     # Relationships
     documents = db.relationship('Document', backref='patient', lazy=True)
     identifiers = db.relationship('PatientIdentifier', backref='patient', lazy=True, cascade='all, delete-orphan')
+    conditions = db.relationship('Condition', backref='patient', lazy=True, cascade='all, delete-orphan')
 
     @staticmethod
     def generate_identifier():
@@ -92,3 +93,44 @@ class Patient(db.Model):
         else:
             next_id = 1
         return f'P{next_id:06d}'  # Format: P000001, P000002, etc.
+
+class Condition(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # FHIR Condition.identifier
+    identifier = db.Column(db.String(50), unique=True)
+    # FHIR Condition.clinicalStatus
+    clinical_status = db.Column(db.String(50), nullable=False)  # active, recurrence, relapse, inactive, remission, resolved
+    # FHIR Condition.verificationStatus
+    verification_status = db.Column(db.String(50))  # unconfirmed, provisional, differential, confirmed, refuted, entered-in-error
+    # FHIR Condition.category
+    category = db.Column(db.String(50))  # problem-list-item, encounter-diagnosis
+    # FHIR Condition.severity
+    severity = db.Column(db.String(50))  # mild, moderate, severe
+    # FHIR Condition.code
+    code = db.Column(db.String(100))  # ICD-10 or SNOMED CT code
+    code_system = db.Column(db.String(100))  # e.g., 'http://snomed.info/sct'
+    # FHIR Condition.bodySite
+    body_site = db.Column(db.String(100))
+    # FHIR Condition.subject
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    # FHIR Condition.onset[x]
+    onset_date = db.Column(db.Date)
+    onset_string = db.Column(db.String(200))
+    # FHIR Condition.abatement[x]
+    abatement_date = db.Column(db.Date)
+    abatement_string = db.Column(db.String(200))
+    # FHIR Condition.recordedDate
+    recorded_date = db.Column(db.DateTime, default=datetime.utcnow)
+    # Additional fields
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def generate_identifier():
+        latest_condition = Condition.query.order_by(Condition.id.desc()).first()
+        if latest_condition:
+            next_id = latest_condition.id + 1
+        else:
+            next_id = 1
+        return f'C{next_id:06d}'  # Format: C000001, C000002, etc.

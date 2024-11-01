@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Conditions for {{ patient.family_name }}, {{ patient.given_name }}</h2>
+        <div>
+            <a href="{{ url_for('conditions.create_condition', patient_id=patient.id) }}" class="btn btn-primary">Add Condition</a>
+            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">Back to Patient</a>
+        </div>
+    </div>
+    
+    <div class="list-group">
+        {% for condition in conditions %}
+        <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">
+                    {% if condition.code %}
+                        {{ condition.code }}
+                        <small class="text-muted">({{ condition.code_system }})</small>
+                    {% else %}
+                        Unspecified Condition
+                    {% endif %}
+                </h5>
+                <small>ID: {{ condition.identifier }}</small>
+            </div>
+            <div class="mb-2">
+                <span class="badge bg-{{ 'success' if condition.clinical_status == 'active' else 'warning' if condition.clinical_status in ['recurrence', 'relapse'] else 'secondary' }} me-2">
+                    {{ condition.clinical_status|title }}
+                </span>
+                {% if condition.verification_status %}
+                <span class="badge bg-info me-2">{{ condition.verification_status|title }}</span>
+                {% endif %}
+                {% if condition.severity %}
+                <span class="badge bg-{{ 'danger' if condition.severity == 'severe' else 'warning' if condition.severity == 'moderate' else 'info' }} me-2">
+                    {{ condition.severity|title }}
+                </span>
+                {% endif %}
+            </div>
+            {% if condition.onset_date or condition.onset_string %}
+            <p class="mb-1">
+                <strong>Onset:</strong> 
+                {{ condition.onset_date.strftime('%Y-%m-%d') if condition.onset_date else condition.onset_string }}
+            </p>
+            {% endif %}
+            {% if condition.notes %}
+            <p class="mb-1">{{ condition.notes }}</p>
+            {% endif %}
+            <div class="mt-2">
+                <a href="{{ url_for('conditions.edit_condition', id=condition.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                <form action="{{ url_for('conditions.delete_condition', id=condition.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this condition?')">Delete</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item">
+            <p class="mb-0">No conditions recorded for this patient.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

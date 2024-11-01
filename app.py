@@ -8,6 +8,7 @@ from routes.auth import auth_bp
 from routes.documents import documents_bp
 from routes.patients import patients_bp
 from routes.main import main_bp
+from routes.conditions import conditions_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +70,7 @@ app.register_blueprint(main_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(documents_bp)
 app.register_blueprint(patients_bp)
+app.register_blueprint(conditions_bp)
 
 if __name__ == '__main__':
     with app.app_context():
