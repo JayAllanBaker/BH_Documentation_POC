@@ -1,5 +1,6 @@
 class HTQLSuggestions {
     constructor(inputElement) {
+        console.log('Initializing HTQLSuggestions');
         this.input = inputElement;
         this.suggestionsList = null;
         this.currentSuggestions = [];
@@ -26,19 +27,46 @@ class HTQLSuggestions {
         this.operators = ['AND', 'OR', 'NOT'];
         
         this.setupEventListeners();
+        console.log('HTQLSuggestions initialized');
     }
 
     setupEventListeners() {
+        console.log('Setting up event listeners');
+        
         // Create suggestions container
         this.suggestionsList = document.createElement('ul');
         this.suggestionsList.className = 'suggestions-list d-none';
-        this.input.parentNode.style.position = 'relative';
-        this.input.parentNode.appendChild(this.suggestionsList);
+        
+        // Find the input's container (the input-group div)
+        const inputGroup = this.input.closest('.input-group');
+        if (!inputGroup) {
+            console.error('Could not find input-group container');
+            return;
+        }
+        
+        // Create a wrapper div for proper positioning
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.flex = '1';
+        
+        // Move input to wrapper
+        this.input.parentNode.insertBefore(wrapper, this.input);
+        wrapper.appendChild(this.input);
+        wrapper.appendChild(this.suggestionsList);
 
-        this.input.addEventListener('input', () => this.handleInput());
-        this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+        this.input.addEventListener('input', () => {
+            console.log('Input event fired');
+            this.handleInput();
+        });
+        
+        this.input.addEventListener('keydown', (e) => {
+            console.log('Keydown event fired:', e.key);
+            this.handleKeydown(e);
+        });
+        
         document.addEventListener('click', (e) => {
             if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
+                console.log('Clicking outside, hiding suggestions');
                 this.hideSuggestions();
             }
         });
@@ -49,6 +77,8 @@ class HTQLSuggestions {
         const inputValue = this.input.value;
         const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
         const currentToken = tokens[tokens.length - 1] || '';
+        
+        console.log('Current token:', currentToken);
 
         if (currentToken.includes('.')) {
             // Suggesting field values
@@ -82,6 +112,8 @@ class HTQLSuggestions {
             );
         }
 
+        console.log('Current suggestions:', this.currentSuggestions);
+        
         if (this.currentSuggestions.length > 0) {
             this.showSuggestions();
         } else {
@@ -121,6 +153,7 @@ class HTQLSuggestions {
     }
 
     showSuggestions() {
+        console.log('Showing suggestions');
         this.selectedIndex = -1;
         this.suggestionsList.innerHTML = this.currentSuggestions
             .map((suggestion, index) => `
@@ -156,6 +189,7 @@ class HTQLSuggestions {
     }
 
     hideSuggestions() {
+        console.log('Hiding suggestions');
         this.suggestionsList.classList.add('d-none');
         this.currentSuggestions = [];
         this.selectedIndex = -1;
@@ -173,6 +207,7 @@ class HTQLSuggestions {
     }
 
     applySuggestion(suggestion) {
+        console.log('Applying suggestion:', suggestion);
         const cursorPosition = this.input.selectionStart;
         const inputValue = this.input.value;
         const tokens = this.tokenize(inputValue.substring(0, cursorPosition));

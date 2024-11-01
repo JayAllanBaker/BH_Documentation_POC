@@ -100,13 +100,20 @@
     </div>
 </div>
 
+<!-- Load CSS first -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/htql-suggestions.css') }}">
+
+<!-- Initialize suggestions after DOM is loaded -->
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing search suggestions');
     const searchInput = document.getElementById('htqlSearch');
     if (searchInput) {
+        console.log('Search input found, creating HTQLSuggestions instance');
         new HTQLSuggestions(searchInput);
+    } else {
+        console.error('Search input not found');
     }
 });
 </script>
