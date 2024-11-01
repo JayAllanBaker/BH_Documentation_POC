@@ -107,18 +107,22 @@ def upload_audio(id):
         audio_file.save(filepath)
         document.audio_file = filename
 
-        # Transcribe audio using OpenAI's Whisper API
+        # Transcribe audio using OpenAI's new API format
         try:
+            client = openai.OpenAI()
             with open(filepath, 'rb') as audio:
-                transcript = openai.Audio.transcribe("whisper-1", audio)
-                transcription = transcript.text
-                document.transcription = transcription
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio,
+                    response_format="text"
+                )
+                document.transcription = transcript
 
             db.session.commit()
             return jsonify({
                 'status': 'success',
                 'filename': filename,
-                'transcription': transcription
+                'transcription': transcript
             })
         except Exception as e:
             current_app.logger.error(f'Transcription error: {str(e)}')
