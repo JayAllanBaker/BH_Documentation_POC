@@ -2,6 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from models import Document, Patient, db
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
+import openai
 
 documents_bp = Blueprint('documents', __name__)
 
@@ -58,13 +61,69 @@ def edit_document(id):
         return redirect(url_for('documents.list_documents'))
     
     if request.method == 'POST':
-        document.title = request.form.get('title')
-        document.content = request.form.get('content')
-        document.updated_at = datetime.utcnow()
-        db.session.commit()
-        return redirect(url_for('documents.view_document', id=id))
+        try:
+            document.title = request.form.get('title')
+            document.content = request.form.get('content')
+            document.meat_monitoring = request.form.get('meat_monitoring')
+            document.meat_assessment = request.form.get('meat_assessment')
+            document.meat_evaluation = request.form.get('meat_evaluation')
+            document.meat_treatment = request.form.get('meat_treatment')
+            document.updated_at = datetime.utcnow()
+            db.session.commit()
+            flash('Document updated successfully', 'success')
+            return redirect(url_for('documents.view_document', id=id))
+        except Exception as e:
+            current_app.logger.error(f'Error updating document: {str(e)}')
+            flash('An error occurred while updating the document', 'danger')
+            return render_template('documents/edit.html', document=document)
     
     return render_template('documents/edit.html', document=document)
+
+@documents_bp.route('/documents/<int:id>/upload-audio', methods=['POST'])
+@login_required
+def upload_audio(id):
+    document = Document.query.get_or_404(id)
+    if document.user_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        if 'audio' not in request.files:
+            return jsonify({'error': 'No audio file provided'}), 400
+
+        audio_file = request.files['audio']
+        if not audio_file:
+            return jsonify({'error': 'No audio file provided'}), 400
+
+        # Create uploads directory if it doesn't exist
+        uploads_dir = os.path.join(current_app.root_path, 'uploads')
+        os.makedirs(uploads_dir, exist_ok=True)
+
+        # Generate unique filename using document ID and timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{document.id}_{timestamp}.wav"
+        filepath = os.path.join(uploads_dir, secure_filename(filename))
+        
+        # Save the audio file
+        audio_file.save(filepath)
+        document.audio_file = filename
+
+        # Transcribe audio using OpenAI's Whisper API
+        with open(filepath, 'rb') as audio:
+            transcript = openai.Audio.transcribe("whisper-1", audio)
+            transcription = transcript.text
+            document.transcription = transcription
+
+        db.session.commit()
+
+        return jsonify({
+            'status': 'success',
+            'filename': filename,
+            'transcription': transcription
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'Error processing audio upload: {str(e)}')
+        return jsonify({'error': str(e)}), 500
 
 @documents_bp.route('/documents/<int:id>/delete', methods=['POST'])
 @login_required
@@ -74,7 +133,18 @@ def delete_document(id):
         flash('Access denied')
         return redirect(url_for('documents.list_documents'))
     
-    db.session.delete(document)
-    db.session.commit()
-    flash('Document deleted successfully')
+    try:
+        # Delete associated audio file if it exists
+        if document.audio_file:
+            audio_path = os.path.join(current_app.root_path, 'uploads', document.audio_file)
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+        
+        db.session.delete(document)
+        db.session.commit()
+        flash('Document deleted successfully', 'success')
+    except Exception as e:
+        current_app.logger.error(f'Error deleting document: {str(e)}')
+        flash('An error occurred while deleting the document', 'danger')
+    
     return redirect(url_for('documents.list_documents'))

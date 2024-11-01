@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Edit Document</h2>
+                <div>
+                    <a href="{{ url_for('documents.list_documents') }}" class="btn btn-secondary">Back to List</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="documentForm">
+                <div class="mb-3">
+                    <label for="title" class="form-label required-field">Title</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ document.title }}" required>
+                </div>
+
+                {% if document.patient %}
+                <div class="mb-3">
+                    <label class="form-label">Patient</label>
+                    <p class="form-control-static">{{ document.patient.family_name }}, {{ document.patient.given_name }}</p>
+                </div>
+                {% endif %}
+
+                <div class="mb-4">
+                    <label class="form-label">Audio Recording</label>
+                    <div class="d-grid gap-2">
+                        <button type="button" id="startRecording" class="btn btn-primary">Start Recording</button>
+                        <button type="button" id="stopRecording" class="btn btn-danger" style="display: none;">Stop Recording</button>
+                    </div>
+                    <small class="text-muted">Click Start Recording to begin capturing audio</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="transcription" class="form-label">Transcription</label>
+                    <textarea class="form-control" id="transcription" name="transcription" rows="4" readonly>{{ document.transcription }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="meat_monitoring" class="form-label">Monitoring</label>
+                    <textarea class="form-control" id="meat_monitoring" name="meat_monitoring" rows="3">{{ document.meat_monitoring }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="meat_assessment" class="form-label">Assessment</label>
+                    <textarea class="form-control" id="meat_assessment" name="meat_assessment" rows="3">{{ document.meat_assessment }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="meat_evaluation" class="form-label">Evaluation</label>
+                    <textarea class="form-control" id="meat_evaluation" name="meat_evaluation" rows="3">{{ document.meat_evaluation }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="meat_treatment" class="form-label">Treatment</label>
+                    <textarea class="form-control" id="meat_treatment" name="meat_treatment" rows="3">{{ document.meat_treatment }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="content" class="form-label">Additional Notes</label>
+                    <textarea class="form-control" id="content" name="content" rows="5">{{ document.content }}</textarea>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.required-field::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: bold;
+    display: inline-block;
+}
+</style>
+
+<script>
+let mediaRecorder;
+let audioChunks = [];
+
+document.getElementById('startRecording').addEventListener('click', async () => {
+    try {
+        console.log("Starting recording process");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            console.log("Starting recording upload process");
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            
+            // Get document ID from the current URL
+            const pathParts = window.location.pathname.split('/');
+            const documentId = pathParts[pathParts.indexOf('documents') + 1];
+            console.log("Document ID from path:", documentId);
+            
+            formData.append('audio', audioBlob);
+            
+            try {
+                const response = await fetch(`/documents/${documentId}/upload-audio`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log("Upload successful:", result);
+                
+                if (result.transcription) {
+                    console.log("Transcription received:", result.transcription);
+                    document.getElementById('transcription').value = result.transcription;
+                }
+            } catch (error) {
+                console.error("Error uploading audio:", error);
+            }
+            
+            audioChunks = [];
+        };
+
+        mediaRecorder.start();
+        console.log("Recording started successfully");
+        document.getElementById('startRecording').style.display = 'none';
+        document.getElementById('stopRecording').style.display = 'block';
+        
+    } catch (error) {
+        console.error("Error starting recording:", error);
+    }
+});
+
+document.getElementById('stopRecording').addEventListener('click', () => {
+    console.log("Stopping recording");
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    document.getElementById('startRecording').style.display = 'block';
+    document.getElementById('stopRecording').style.display = 'none';
+});
+</script>
+{% endblock %}
