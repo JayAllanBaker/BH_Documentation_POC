@@ -126,30 +126,99 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.parentNode.insertBefore(suggestionContainer, searchInput);
     suggestionContainer.appendChild(searchInput);
 
+    // Add validation indicator
+    const validationIndicator = document.createElement('div');
+    validationIndicator.className = 'validation-indicator';
+    validationIndicator.style.cssText = `
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    `;
+    searchInput.parentNode.appendChild(validationIndicator);
+
     const suggestionsList = document.createElement('ul');
     suggestionsList.className = 'suggestions-list d-none';
-    suggestionsList.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        z-index: 9999;
-        background: white;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        max-height: 300px;
-        overflow-y: auto;
-        margin-top: 2px;
-        padding: 0;
-        list-style: none;
-    `;
     suggestionContainer.appendChild(suggestionsList);
 
-    // Direct event handling
+    function validateHTQLSyntax(query) {
+        // Basic validation patterns
+        const validFields = {
+            patient: ['name', 'id', 'gender', 'city', 'state'],
+            document: ['title', 'content', 'transcription'],
+            condition: ['code', 'status', 'severity']
+        };
+        
+        const validOperators = ['AND', 'OR', 'NOT'];
+        const validGenderValues = ['male', 'female', 'other'];
+        const validStatusValues = ['active', 'inactive', 'resolved'];
+        const validSeverityValues = ['mild', 'moderate', 'severe'];
+        
+        try {
+            // Tokenize query
+            const tokens = query.split(/\s+/);
+            let isValid = true;
+            let message = '';
+            
+            tokens.forEach(token => {
+                if (token.includes('.')) {
+                    // Validate field reference
+                    const [category, field] = token.split('.');
+                    if (!validFields[category]) {
+                        isValid = false;
+                        message = `Invalid category: ${category}`;
+                    } else if (field && !validFields[category].includes(field)) {
+                        isValid = false;
+                        message = `Invalid field: ${field} for category ${category}`;
+                    }
+                } else if (token.includes(':')) {
+                    // Validate field values
+                    const [field, value] = token.split(':');
+                    if (field.includes('gender') && value && !validGenderValues.includes(value)) {
+                        isValid = false;
+                        message = `Invalid gender value: ${value}`;
+                    } else if (field.includes('status') && value && !validStatusValues.includes(value)) {
+                        isValid = false;
+                        message = `Invalid status value: ${value}`;
+                    } else if (field.includes('severity') && value && !validSeverityValues.includes(value)) {
+                        isValid = false;
+                        message = `Invalid severity value: ${value}`;
+                    }
+                } else if (token && !validOperators.includes(token)) {
+                    // Validate operators
+                    const isOperator = validOperators.some(op => token === op);
+                    const isValue = true; // Allow any non-operator value
+                    if (!isOperator && !isValue) {
+                        isValid = false;
+                        message = `Invalid token: ${token}`;
+                    }
+                }
+            });
+            
+            return { isValid, message };
+        } catch (error) {
+            return { isValid: false, message: 'Invalid query syntax' };
+        }
+    }
+
+    // Direct event handling with validation
     searchInput.addEventListener('input', function() {
         const query = this.value.trim();
         console.log('Input value:', query);
+
+        // Validate query
+        const validation = validateHTQLSyntax(query);
+        validationIndicator.style.backgroundColor = query ? 
+            (validation.isValid ? '#28a745' : '#dc3545') : 'transparent';
+        validationIndicator.title = validation.message || 'Valid HTQL query';
+
+        // Update submit button state
+        const submitButton = this.closest('form').querySelector('button[type="submit"]');
+        submitButton.disabled = query && !validation.isValid;
 
         // Show suggestions for specific patterns
         if (query.includes('.') || query.includes(':')) {
@@ -191,6 +260,18 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'Escape':
                 hideSuggestions(suggestionsList);
                 break;
+        }
+    });
+
+    // Add validation check before form submission
+    searchInput.closest('form').addEventListener('submit', function(e) {
+        const query = searchInput.value.trim();
+        if (query) {
+            const validation = validateHTQLSyntax(query);
+            if (!validation.isValid) {
+                e.preventDefault();
+                alert(validation.message || 'Invalid HTQL query');
+            }
         }
     });
 
