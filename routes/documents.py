@@ -82,11 +82,11 @@ def edit_document(id):
 @documents_bp.route('/documents/<int:id>/upload-audio', methods=['POST'])
 @login_required
 def upload_audio(id):
-    document = Document.query.get_or_404(id)
-    if document.user_id != current_user.id:
-        return jsonify({'error': 'Access denied'}), 403
-
     try:
+        document = Document.query.get_or_404(id)
+        if document.user_id != current_user.id:
+            return jsonify({'error': 'Access denied'}), 403
+
         if 'audio' not in request.files:
             return jsonify({'error': 'No audio file provided'}), 400
 
@@ -98,32 +98,35 @@ def upload_audio(id):
         uploads_dir = os.path.join(current_app.root_path, 'uploads')
         os.makedirs(uploads_dir, exist_ok=True)
 
-        # Generate unique filename using document ID and timestamp
+        # Generate unique filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{document.id}_{timestamp}.wav"
+        filename = f"doc_{document.id}_{timestamp}.wav"
         filepath = os.path.join(uploads_dir, secure_filename(filename))
-        
+
         # Save the audio file
         audio_file.save(filepath)
         document.audio_file = filename
 
         # Transcribe audio using OpenAI's Whisper API
-        with open(filepath, 'rb') as audio:
-            transcript = openai.Audio.transcribe("whisper-1", audio)
-            transcription = transcript.text
-            document.transcription = transcription
+        try:
+            with open(filepath, 'rb') as audio:
+                transcript = openai.Audio.transcribe("whisper-1", audio)
+                transcription = transcript.text
+                document.transcription = transcription
 
-        db.session.commit()
-
-        return jsonify({
-            'status': 'success',
-            'filename': filename,
-            'transcription': transcription
-        })
+            db.session.commit()
+            return jsonify({
+                'status': 'success',
+                'filename': filename,
+                'transcription': transcription
+            })
+        except Exception as e:
+            current_app.logger.error(f'Transcription error: {str(e)}')
+            return jsonify({'error': 'Error processing audio'}), 500
 
     except Exception as e:
-        current_app.logger.error(f'Error processing audio upload: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error(f'Upload error: {str(e)}')
+        return jsonify({'error': 'Error uploading audio'}), 500
 
 @documents_bp.route('/documents/<int:id>/delete', methods=['POST'])
 @login_required

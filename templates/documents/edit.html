@@ -35,14 +35,14 @@
                 </div>
 
                 <!-- Progress Indicators -->
-                <div id="recordingIndicator" class="alert alert-info" style="display: none;">
+                <div id="recordingIndicator" class="alert alert-info" style="display: none; align-items: center; padding: 1rem;">
                     <div class="d-flex align-items-center">
                         <strong>Recording in progress...</strong>
                         <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
                     </div>
                 </div>
 
-                <div id="uploadingIndicator" class="alert alert-info" style="display: none;">
+                <div id="uploadingIndicator" class="alert alert-info" style="display: none; align-items: center; padding: 1rem;">
                     <div class="d-flex align-items-center">
                         <strong>Processing audio...</strong>
                         <div class="progress w-100 ms-2">
@@ -51,7 +51,7 @@
                     </div>
                 </div>
 
-                <div id="transcriptionIndicator" class="alert alert-success" style="display: none;">
+                <div id="transcriptionIndicator" class="alert alert-success" style="display: none; align-items: center; padding: 1rem;">
                     <div class="d-flex align-items-center">
                         <strong>Transcription complete!</strong>
                     </div>
@@ -107,6 +107,7 @@
 <script>
 let mediaRecorder;
 let audioChunks = [];
+let isRecording = false;
 
 document.getElementById('startRecording').addEventListener('click', async () => {
     try {
@@ -118,21 +119,27 @@ document.getElementById('startRecording').addEventListener('click', async () => 
             audioChunks.push(event.data);
         };
 
+        mediaRecorder.onstart = () => {
+            isRecording = true;
+            document.getElementById('recordingIndicator').style.display = 'flex';
+            document.getElementById('uploadingIndicator').style.display = 'none';
+            document.getElementById('transcriptionIndicator').style.display = 'none';
+            document.getElementById('startRecording').style.display = 'none';
+            document.getElementById('stopRecording').style.display = 'block';
+        };
+
         mediaRecorder.onstop = async () => {
-            document.getElementById('uploadingIndicator').style.display = 'block';
+            isRecording = false;
+            document.getElementById('uploadingIndicator').style.display = 'flex';
             document.getElementById('recordingIndicator').style.display = 'none';
             document.getElementById('transcriptionIndicator').style.display = 'none';
             
             const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
             const formData = new FormData();
-            
-            const pathParts = window.location.pathname.split('/');
-            const documentId = pathParts[pathParts.indexOf('documents') + 1];
-            
-            formData.append('audio', audioBlob);
+            formData.append('audio', audioBlob, 'recording.wav');
             
             try {
-                const response = await fetch(`/documents/${documentId}/upload-audio`, {
+                const response = await fetch(`/documents/${document.id}/upload-audio`, {
                     method: 'POST',
                     body: formData
                 });
@@ -142,11 +149,10 @@ document.getElementById('startRecording').addEventListener('click', async () => 
                 }
                 
                 const result = await response.json();
-                
                 if (result.transcription) {
                     document.getElementById('transcription').value = result.transcription;
                     document.getElementById('uploadingIndicator').style.display = 'none';
-                    document.getElementById('transcriptionIndicator').style.display = 'block';
+                    document.getElementById('transcriptionIndicator').style.display = 'flex';
                     setTimeout(() => {
                         document.getElementById('transcriptionIndicator').style.display = 'none';
                     }, 3000);
@@ -154,7 +160,6 @@ document.getElementById('startRecording').addEventListener('click', async () => 
             } catch (error) {
                 console.error("Error uploading audio:", error);
                 document.getElementById('uploadingIndicator').style.display = 'none';
-                // Show error message to user
                 const errorAlert = document.createElement('div');
                 errorAlert.className = 'alert alert-danger';
                 errorAlert.textContent = 'Error processing audio. Please try again.';
@@ -163,30 +168,29 @@ document.getElementById('startRecording').addEventListener('click', async () => 
             }
             
             audioChunks = [];
-        };
-
-        mediaRecorder.onstart = () => {
-            document.getElementById('recordingIndicator').style.display = 'block';
-            document.getElementById('uploadingIndicator').style.display = 'none';
-            document.getElementById('transcriptionIndicator').style.display = 'none';
+            document.getElementById('startRecording').style.display = 'block';
+            document.getElementById('stopRecording').style.display = 'none';
         };
 
         mediaRecorder.start();
         console.log("Recording started successfully");
-        document.getElementById('startRecording').style.display = 'none';
-        document.getElementById('stopRecording').style.display = 'block';
         
     } catch (error) {
         console.error("Error starting recording:", error);
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-danger';
+        errorAlert.textContent = 'Error accessing microphone. Please ensure microphone permissions are granted.';
+        document.querySelector('.card-body').insertBefore(errorAlert, document.getElementById('documentForm'));
+        setTimeout(() => errorAlert.remove(), 5000);
     }
 });
 
 document.getElementById('stopRecording').addEventListener('click', () => {
-    console.log("Stopping recording");
-    mediaRecorder.stop();
-    mediaRecorder.stream.getTracks().forEach(track => track.stop());
-    document.getElementById('startRecording').style.display = 'block';
-    document.getElementById('stopRecording').style.display = 'none';
+    if (isRecording && mediaRecorder) {
+        console.log("Stopping recording");
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
 });
 
 document.getElementById('documentForm').addEventListener('submit', async function(event) {
@@ -220,5 +224,10 @@ document.getElementById('documentForm').addEventListener('submit', async functio
         submitButton.textContent = 'Save Changes';
     }
 });
+
+// Update the indicator styles
+document.querySelector('#recordingIndicator').style.cssText = 'display: none; align-items: center; padding: 1rem;';
+document.querySelector('#uploadingIndicator').style.cssText = 'display: none; align-items: center; padding: 1rem;';
+document.querySelector('#transcriptionIndicator').style.cssText = 'display: none; align-items: center; padding: 1rem;';
 </script>
 {% endblock %}
