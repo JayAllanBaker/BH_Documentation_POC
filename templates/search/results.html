@@ -51,7 +51,7 @@
                 <p class="mb-0"><strong>Pro tip:</strong> Use Tab or Enter to complete suggestions. Arrow keys to navigate suggestions.</p>
             </div>
             {% endif %}
-            
+
             {% if query %}
             <div class="mb-4">
                 <h4>Search Results for "{{ query }}"</h4>
@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set input container position
     searchInput.parentNode.style.position = 'relative';
 
-    // Add validation indicator with improved styles
+    // Add validation indicator
     const validationIndicator = document.createElement('div');
     validationIndicator.className = 'validation-indicator';
     validationIndicator.style.cssText = `
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        transition: background-color 0.3s ease;
+        transition: all 0.3s ease;
         z-index: 1000;
         opacity: 1;
         pointer-events: none;
@@ -152,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function() {
     suggestionContainer.appendChild(suggestionsList);
 
     function validateHTQLSyntax(query) {
-        // Basic validation patterns
         const validFields = {
             patient: ['name', 'id', 'gender', 'city', 'state'],
             document: ['title', 'content', 'transcription'],
@@ -165,9 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const validSeverityValues = ['mild', 'moderate', 'severe'];
         
         try {
-            // Split query and normalize tokens
             const tokens = query.split(/\s+/).map(token => {
-                // Clean up spaces around colons
                 return token.replace(/\s*:\s*/g, ':');
             }).filter(Boolean);
 
@@ -176,7 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             tokens.forEach(token => {
                 if (token.includes('.')) {
-                    // Validate field reference
                     const [category, field] = token.split('.');
                     if (!validFields[category]) {
                         isValid = false;
@@ -186,7 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         message = `Invalid field: ${field.split(':')[0]} for category ${category}`;
                     }
                     
-                    // Check value if it's a field:value pair
                     if (field && field.includes(':')) {
                         const [fieldName, value] = field.split(':');
                         if (fieldName === 'gender' && value && !validGenderValues.includes(value)) {
@@ -195,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 } else if (token.includes(':')) {
-                    // Validate field values
                     const [field, value] = token.split(':');
                     if (field.includes('gender') && value && !validGenderValues.includes(value)) {
                         isValid = false;
@@ -208,9 +202,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         message = `Invalid severity value: ${value}`;
                     }
                 } else if (token && !validOperators.includes(token)) {
-                    // Validate operators
                     const isOperator = validOperators.some(op => token === op);
-                    const isValue = true; // Allow any non-operator value
+                    const isValue = true;
                     if (!isOperator && !isValue) {
                         isValid = false;
                         message = `Invalid token: ${token}`;
@@ -224,34 +217,148 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Direct event handling with validation
+    function updateValidationIndicator(query) {
+        const validation = validateHTQLSyntax(query);
+        validationIndicator.style.backgroundColor = query ? 
+            (validation.isValid ? '#28a745' : '#dc3545') : 'transparent';
+        validationIndicator.style.opacity = query ? '1' : '0';
+        validationIndicator.title = validation.message || 'Valid HTQL query';
+        validationIndicator.style.transition = 'all 0.3s ease';
+        
+        return validation.isValid;
+    }
+
+    function generateSuggestions(query) {
+        const suggestions = [];
+        const normalizedQuery = query.toLowerCase().trim();
+        
+        // Show field suggestions
+        if (normalizedQuery.endsWith('.')) {
+            const category = normalizedQuery.slice(0, -1);
+            const fields = {
+                'patient': ['name', 'id', 'gender', 'city', 'state'],
+                'document': ['title', 'content', 'transcription'],
+                'condition': ['code', 'status', 'severity']
+            };
+            
+            if (fields[category]) {
+                return fields[category].map(f => `${category}.${f}`);
+            }
+        }
+        
+        // Show value suggestions immediately after typing a field
+        const lastDot = normalizedQuery.lastIndexOf('.');
+        if (lastDot > -1) {
+            const category = normalizedQuery.substring(0, lastDot);
+            const field = normalizedQuery.substring(lastDot + 1);
+            
+            // Show full suggestions when typing a field name
+            if (field === 'gender' || normalizedQuery.endsWith('.gender')) {
+                return ['patient.gender:male', 'patient.gender:female', 'patient.gender:other'];
+            }
+            if (field === 'status' || normalizedQuery.endsWith('.status')) {
+                return ['condition.status:active', 'condition.status:inactive', 'condition.status:resolved'];
+            }
+            if (field === 'severity' || normalizedQuery.endsWith('.severity')) {
+                return ['condition.severity:mild', 'condition.severity:moderate', 'condition.severity:severe'];
+            }
+        }
+        
+        // Filter existing suggestions if user is typing a value
+        if (normalizedQuery.includes(':')) {
+            const [field, value = ''] = normalizedQuery.split(':');
+            if (field.includes('gender')) {
+                return ['male', 'female', 'other']
+                    .filter(v => v.startsWith(value))
+                    .map(v => `${field}:${v}`);
+            }
+            if (field.includes('status')) {
+                return ['active', 'inactive', 'resolved']
+                    .filter(v => v.startsWith(value))
+                    .map(v => `${field}:${v}`);
+            }
+            if (field.includes('severity')) {
+                return ['mild', 'moderate', 'severe']
+                    .filter(v => v.startsWith(value))
+                    .map(v => `${field}:${v}`);
+            }
+        }
+        
+        // Default suggestions for initial typing
+        if (!normalizedQuery.includes('.')) {
+            return ['patient', 'document', 'condition'];
+        }
+        
+        return suggestions;
+    }
+
+    function showSuggestions(suggestions) {
+        suggestionsList.innerHTML = suggestions
+            .map(s => `<li class="suggestion-item p-2 hover-bg-light">${s}</li>`)
+            .join('');
+        suggestionsList.classList.remove('d-none');
+    }
+
+    function hideSuggestions() {
+        suggestionsList.classList.add('d-none');
+        suggestionsList.innerHTML = '';
+    }
+
+    function selectSuggestion(items, index) {
+        const validIndex = (index + items.length) % items.length;
+        items.forEach((item, i) => {
+            item.classList.toggle('selected', i === validIndex);
+            if (i === validIndex) item.scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    function applySuggestion(suggestion, input) {
+        const cursorPosition = input.selectionStart;
+        const inputValue = input.value;
+        const beforeCursor = inputValue.substring(0, cursorPosition);
+        const afterCursor = inputValue.substring(cursorPosition);
+        
+        // Find the last token before cursor
+        const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
+        const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
+        
+        // Construct new value with proper spacing
+        input.value = beforeCursor.substring(0, start) + 
+                     suggestion +
+                     (afterCursor.startsWith(' ') ? '' : ' ') +
+                     afterCursor.trim();
+        
+        // Position cursor after suggestion
+        const newPosition = start + suggestion.length + 1;
+        input.setSelectionRange(newPosition, newPosition);
+        input.focus();
+    }
+
+    // Handle input events
     searchInput.addEventListener('input', function() {
         const query = this.value.trim();
         console.log('Input value:', query);
 
-        // Always run validation
-        const validation = validateHTQLSyntax(query);
+        // Always update validation
+        updateValidationIndicator(query);
         
-        // Update validation indicator
-        validationIndicator.style.backgroundColor = query ? 
-            (validation.isValid ? '#28a745' : '#dc3545') : 'transparent';
-        validationIndicator.title = validation.message || 'Valid HTQL query';
-        validationIndicator.style.opacity = query ? '1' : '0';
-        
-        // Update submit button state
-        const submitButton = this.closest('form').querySelector('button[type="submit"]');
-        submitButton.disabled = query && !validation.isValid;
-        
-        // Show suggestions only if we have a valid pattern
+        // Show suggestions based on context
         if (query.includes('.') || query.includes(':')) {
             const suggestions = generateSuggestions(query);
             if (suggestions.length > 0) {
-                showSuggestions(suggestions, suggestionsList);
+                showSuggestions(suggestions);
             } else {
-                hideSuggestions(suggestionsList);
+                hideSuggestions();
+            }
+        } else if (query) {
+            const suggestions = generateSuggestions(query);
+            if (suggestions.length > 0) {
+                showSuggestions(suggestions);
+            } else {
+                hideSuggestions();
             }
         } else {
-            hideSuggestions(suggestionsList);
+            hideSuggestions();
         }
     });
 
@@ -277,10 +384,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (selected) {
                     e.preventDefault();
                     applySuggestion(selected.textContent, searchInput);
+                    hideSuggestions();
                 }
                 break;
             case 'Escape':
-                hideSuggestions(suggestionsList);
+                hideSuggestions();
                 break;
         }
     });
@@ -289,10 +397,10 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.closest('form').addEventListener('submit', function(e) {
         const query = searchInput.value.trim();
         if (query) {
-            const validation = validateHTQLSyntax(query);
-            if (!validation.isValid) {
+            const isValid = updateValidationIndicator(query);
+            if (!isValid) {
                 e.preventDefault();
-                alert(validation.message || 'Invalid HTQL query');
+                alert(validationIndicator.title || 'Invalid HTQL query');
             }
         }
     });
@@ -300,83 +408,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Close suggestions when clicking outside
     document.addEventListener('click', function(e) {
         if (!suggestionContainer.contains(e.target)) {
-            hideSuggestions(suggestionsList);
+            hideSuggestions();
         }
     });
 });
-
-// Helper functions
-function generateSuggestions(query) {
-    const suggestions = [];
-    const normalizedQuery = query.replace(/\s*:\s*/g, ':');
-    
-    if (normalizedQuery.includes('.')) {
-        const [category, field] = normalizedQuery.split('.');
-        const fields = {
-            'patient': ['name', 'id', 'gender', 'city', 'state'],
-            'document': ['title', 'content', 'transcription'],
-            'condition': ['code', 'status', 'severity']
-        };
-        
-        if (fields[category]) {
-            suggestions.push(...fields[category]
-                .filter(f => !field || f.toLowerCase().startsWith(field.toLowerCase()))
-                .map(f => `${category}.${f}`));
-        }
-    } else if (normalizedQuery.includes(':')) {
-        const [field] = normalizedQuery.split(':');
-        if (field.includes('gender')) {
-            suggestions.push(...['male', 'female', 'other'].map(v => `${field}:${v}`));
-        } else if (field.includes('status')) {
-            suggestions.push(...['active', 'inactive', 'resolved'].map(v => `${field}:${v}`));
-        } else if (field.includes('severity')) {
-            suggestions.push(...['mild', 'moderate', 'severe'].map(v => `${field}:${v}`));
-        }
-    }
-    
-    return suggestions;
-}
-
-function showSuggestions(suggestions, suggestionsList) {
-    suggestionsList.innerHTML = suggestions
-        .map(s => `<li class="suggestion-item p-2 hover-bg-light">${s}</li>`)
-        .join('');
-    suggestionsList.classList.remove('d-none');
-}
-
-function hideSuggestions(suggestionsList) {
-    suggestionsList.classList.add('d-none');
-    suggestionsList.innerHTML = '';
-}
-
-function selectSuggestion(items, index) {
-    const validIndex = (index + items.length) % items.length;
-    items.forEach((item, i) => {
-        item.classList.toggle('selected', i === validIndex);
-        if (i === validIndex) item.scrollIntoView({ block: 'nearest' });
-    });
-}
-
-function applySuggestion(suggestion, input) {
-    const cursorPosition = input.selectionStart;
-    const inputValue = input.value;
-    const beforeCursor = inputValue.substring(0, cursorPosition);
-    const afterCursor = inputValue.substring(cursorPosition);
-    
-    // Find the last token before cursor
-    const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
-    const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
-    
-    // Construct new value
-    input.value = beforeCursor.substring(0, start) + 
-                  suggestion +
-                  (afterCursor.startsWith(' ') ? '' : ' ') +
-                  afterCursor.trim();
-    
-    // Position cursor after suggestion
-    const newPosition = start + suggestion.length + 1;
-    input.setSelectionRange(newPosition, newPosition);
-    input.focus();
-}
 </script>
 {% endblock %}

@@ -19,12 +19,16 @@
 .suggestion-item {
     padding: 0.5rem 1rem;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s ease;
 }
 
 .suggestion-item:hover,
 .suggestion-item.selected {
     background-color: #f8f9fa;
+}
+
+.suggestion-item.selected {
+    background-color: #e9ecef;
 }
 
 .d-none {
@@ -52,4 +56,19 @@
 
 .position-relative {
     position: relative !important;
+}
+
+/* Smooth transitions */
+.suggestions-list {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.suggestions-list:not(.d-none) {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.suggestions-list.d-none {
+    opacity: 0;
+    transform: translateY(-10px);
 }
