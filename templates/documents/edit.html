@@ -155,6 +155,25 @@ document.getElementById('startRecording').addEventListener('click', async () => 
                 const result = await response.json();
                 if (result.transcription) {
                     document.getElementById('transcription').value = result.transcription;
+                    
+                    // Update MEAT fields if analysis is available
+                    if (result.meat_analysis) {
+                        document.getElementById('meat_monitoring').value = result.meat_analysis.monitoring || '';
+                        document.getElementById('meat_assessment').value = result.meat_analysis.assessment || '';
+                        document.getElementById('meat_evaluation').value = result.meat_analysis.evaluation || '';
+                        document.getElementById('meat_treatment').value = result.meat_analysis.treatment || '';
+                        
+                        // Add visual feedback for MEAT analysis completion
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success alert-dismissible fade show';
+                        alert.innerHTML = `
+                            <strong>Analysis Complete!</strong> MEAT criteria have been analyzed and populated.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        document.querySelector('.card-body').insertBefore(alert, document.getElementById('documentForm'));
+                        setTimeout(() => alert.remove(), 5000);
+                    }
+                    
                     document.getElementById('uploadingIndicator').style.display = 'none';
                     document.getElementById('transcriptionIndicator').style.display = 'flex';
                     setTimeout(() => {
