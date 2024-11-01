@@ -14,7 +14,7 @@
     border: 1px solid #ced4da;
     border-radius: 0.375rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 9999;
+    z-index: 99999;
     margin-top: 2px;
     padding: 0.5rem 0;
     list-style: none;
@@ -75,56 +75,55 @@
             <div class="mb-4">
                 <h4>Search Results for "{{ query }}"</h4>
                 <hr>
-            </div>
-            
-            {% if patients %}
-            <div class="mb-4">
-                <h5>Patients ({{ patients|length }})</h5>
-                <div class="list-group">
-                    {% for patient in patients %}
-                    <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="list-group-item list-group-item-action">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
-                            <small>ID: {{ patient.identifier }}</small>
-                        </div>
-                        <small class="text-muted">
-                            {{ patient.city }}{% if patient.state %}, {{ patient.state }}{% endif %}
-                            {% if patient.conditions %}
-                            • {{ patient.conditions|length }} condition(s)
+                
+                {% if patients %}
+                <div class="mb-4">
+                    <h5>Patients ({{ patients|length }})</h5>
+                    <div class="list-group">
+                        {% for patient in patients %}
+                        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
+                                <small>ID: {{ patient.identifier }}</small>
+                            </div>
+                            <small class="text-muted">
+                                {{ patient.city }}{% if patient.state %}, {{ patient.state }}{% endif %}
+                                {% if patient.conditions %}
+                                • {{ patient.conditions|length }} condition(s)
+                                {% endif %}
+                            </small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if documents %}
+                <div class="mb-4">
+                    <h5>Documents ({{ documents|length }})</h5>
+                    <div class="list-group">
+                        {% for document in documents %}
+                        <a href="{{ url_for('documents.view_document', id=document.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ document.title }}</h6>
+                                <small>{{ document.updated_at.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            {% if document.patient %}
+                            <small class="text-muted">
+                                Patient: {{ document.patient.family_name }}, {{ document.patient.given_name }}
+                            </small>
                             {% endif %}
-                        </small>
-                    </a>
-                    {% endfor %}
+                        </a>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
-            {% endif %}
-            
-            {% if documents %}
-            <div class="mb-4">
-                <h5>Documents ({{ documents|length }})</h5>
-                <div class="list-group">
-                    {% for document in documents %}
-                    <a href="{{ url_for('documents.view_document', id=document.id) }}" class="list-group-item list-group-item-action">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">{{ document.title }}</h6>
-                            <small>{{ document.updated_at.strftime('%Y-%m-%d') }}</small>
-                        </div>
-                        {% if document.patient %}
-                        <small class="text-muted">
-                            Patient: {{ document.patient.family_name }}, {{ document.patient.given_name }}
-                        </small>
-                        {% endif %}
-                    </a>
-                    {% endfor %}
+                {% endif %}
+                
+                {% if not patients and not documents %}
+                <div class="alert alert-warning">
+                    No results found for your search.
                 </div>
-            </div>
-            {% endif %}
-            
-            {% if not patients and not documents %}
-            <div class="alert alert-warning">
-                No results found for your search.
-            </div>
-            {% endif %}
+                {% endif %}
             {% endif %}
         </div>
     </div>
@@ -132,21 +131,27 @@
 {% endblock %}
 
 {% block scripts %}
-<script>console.log('Loading HTQL suggestions script');</script>
+<script>
+    console.log('Document loaded');
+    console.log('Static root:', "{{ url_for('static', filename='') }}");
+</script>
 <!-- Initialize HTQL suggestions -->
 <script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing HTQL suggestions');
+    console.log('DOM loaded');
     const searchInput = document.getElementById('htqlSearch');
     if (searchInput) {
-        console.log('Search input found, creating HTQLSuggestions instance');
-        try {
-            window.htqlSuggestions = new HTQLSuggestions(searchInput);
-            console.log('HTQLSuggestions initialized successfully');
-        } catch (error) {
-            console.error('Error initializing HTQLSuggestions:', error);
-        }
+        console.log('Found search input:', searchInput);
+        window.htqlSuggestions = new HTQLSuggestions(searchInput);
+        
+        // Verify suggestions list was created
+        const suggestionsList = document.querySelector('.suggestions-list');
+        console.log('Suggestions list element:', suggestionsList);
+        
+        // Test creating a suggestion
+        searchInput.value = 'patient.';
+        searchInput.dispatchEvent(new Event('input'));
     } else {
         console.error('Search input element not found');
     }

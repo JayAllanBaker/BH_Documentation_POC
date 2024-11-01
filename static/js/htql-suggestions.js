@@ -1,10 +1,11 @@
 class HTQLSuggestions {
     constructor(inputElement) {
-        console.log('Initializing HTQLSuggestions');
         if (!inputElement) {
-            throw new Error('Input element is required');
+            console.error('Input element not provided');
+            return;
         }
-
+        console.log('Initializing HTQLSuggestions with input:', inputElement);
+        
         this.input = inputElement;
         this.suggestionsList = null;
         this.currentSuggestions = [];
@@ -40,46 +41,40 @@ class HTQLSuggestions {
     }
 
     initializeSuggestions() {
-        console.log('Attempting to initialize suggestions (attempt ' + (this.retryCount + 1) + ')');
         try {
-            // Create suggestions container
-            this.suggestionsList = document.createElement('ul');
-            this.suggestionsList.id = 'htqlSuggestionsList';
-            this.suggestionsList.className = 'suggestions-list d-none';
-            console.log('Created suggestions list:', this.suggestionsList);
-
-            if (!this.suggestionsList) {
-                console.error('Failed to create suggestions list');
-                this.retryInitialization();
-                return;
-            }
-
-            // Set up input container
-            const wrapper = document.createElement('div');
-            wrapper.className = 'htql-input-wrapper';
-            
-            // Insert wrapper and move input into it
-            this.input.parentNode.insertBefore(wrapper, this.input);
-            wrapper.appendChild(this.input);
-            wrapper.appendChild(this.suggestionsList);
-            console.log('Set up input wrapper and positioned elements');
-
+            console.log('Initializing suggestions, attempt:', this.retryCount + 1);
+            this.createSuggestionsList();
             this.setupEventListeners();
-            console.log('HTQLSuggestions initialized successfully');
+            console.log('Initialization successful');
         } catch (error) {
-            console.error('Error initializing suggestions:', error);
-            this.retryInitialization();
+            console.error('Initialization failed:', error);
+            if (this.retryCount < this.maxRetries) {
+                this.retryCount++;
+                setTimeout(() => this.initializeSuggestions(), 100);
+            }
         }
     }
 
-    retryInitialization() {
-        if (this.retryCount < this.maxRetries) {
-            this.retryCount++;
-            console.log('Retrying initialization in 100ms...');
-            setTimeout(() => this.initializeSuggestions(), 100);
-        } else {
-            console.error('Failed to initialize suggestions after ' + this.maxRetries + ' attempts');
+    createSuggestionsList() {
+        // Create suggestions container
+        this.suggestionsList = document.createElement('ul');
+        this.suggestionsList.id = 'htqlSuggestionsList';
+        this.suggestionsList.className = 'suggestions-list d-none';
+        console.log('Created suggestions list:', this.suggestionsList);
+
+        if (!this.suggestionsList) {
+            throw new Error('Failed to create suggestions list');
         }
+
+        // Set up input container
+        const wrapper = document.createElement('div');
+        wrapper.className = 'htql-input-wrapper';
+        
+        // Insert wrapper and move input into it
+        this.input.parentNode.insertBefore(wrapper, this.input);
+        wrapper.appendChild(this.input);
+        wrapper.appendChild(this.suggestionsList);
+        console.log('Set up input wrapper and positioned elements');
     }
 
     setupEventListeners() {
@@ -106,6 +101,8 @@ class HTQLSuggestions {
                 this.hideSuggestions();
             }
         });
+
+        console.log('Event listeners setup completed');
     }
 
     showLoadingIndicator() {
@@ -121,7 +118,11 @@ class HTQLSuggestions {
     }
 
     handleInput() {
-        console.log('Handling input event');
+        if (!this.suggestionsList) {
+            console.error('Suggestions list not initialized');
+            return;
+        }
+
         try {
             const cursorPosition = this.input.selectionStart;
             const inputValue = this.input.value;
@@ -133,7 +134,6 @@ class HTQLSuggestions {
             if (currentToken.includes('.')) {
                 // Suggesting field values
                 const [category, field] = currentToken.split('.');
-                console.log('Processing category.field suggestion:', { category, field });
                 if (this.fields[category]) {
                     this.currentSuggestions = Object.keys(this.fields[category])
                         .filter(f => !field || f.toLowerCase().startsWith(field.toLowerCase()))
@@ -142,7 +142,6 @@ class HTQLSuggestions {
             } else if (currentToken.includes(':')) {
                 // Suggesting values based on field type
                 const [field, value] = currentToken.split(':');
-                console.log('Processing field:value suggestion:', { field, value });
                 if (field.includes('gender')) {
                     this.currentSuggestions = ['male', 'female', 'other']
                         .filter(v => !value || v.startsWith(value.toLowerCase()))
@@ -158,7 +157,6 @@ class HTQLSuggestions {
                 }
             } else {
                 // Suggesting categories or operators
-                console.log('Processing category/operator suggestions');
                 const suggestions = [...Object.keys(this.fields), ...this.operators];
                 this.currentSuggestions = suggestions.filter(s => 
                     !currentToken || s.toLowerCase().startsWith(currentToken.toLowerCase())
@@ -180,7 +178,7 @@ class HTQLSuggestions {
     }
 
     handleKeydown(e) {
-        if (this.currentSuggestions.length === 0) return;
+        if (!this.suggestionsList || this.currentSuggestions.length === 0) return;
 
         switch(e.key) {
             case 'ArrowDown':
@@ -212,14 +210,13 @@ class HTQLSuggestions {
 
     showSuggestions() {
         if (!this.suggestionsList) {
-            console.error('Suggestions list element not found');
+            console.error('Suggestions list not initialized');
             return;
         }
 
-        console.log('Showing suggestions');
-        this.selectedIndex = -1;
-        
         try {
+            this.selectedIndex = -1;
+            
             this.suggestionsList.innerHTML = this.currentSuggestions
                 .map((suggestion, index) => `
                     <li class="suggestion-item" data-index="${index}">
@@ -231,7 +228,6 @@ class HTQLSuggestions {
 
             this.suggestionsList.classList.remove('d-none');
             this.suggestionsList.classList.add('show');
-            console.log('Suggestions list shown');
 
             // Add click handlers to suggestions
             this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
@@ -261,7 +257,6 @@ class HTQLSuggestions {
     hideSuggestions() {
         if (!this.suggestionsList) return;
         
-        console.log('Hiding suggestions');
         this.suggestionsList.classList.remove('show');
         this.suggestionsList.classList.add('d-none');
         this.currentSuggestions = [];
@@ -283,7 +278,6 @@ class HTQLSuggestions {
     }
 
     applySuggestion(suggestion) {
-        console.log('Applying suggestion:', suggestion);
         try {
             const cursorPosition = this.input.selectionStart;
             const inputValue = this.input.value;
