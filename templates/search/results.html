@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8 offset-md-2">
+            <form action="{{ url_for('search.search') }}" method="GET" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" 
+                           value="{{ query }}" 
+                           placeholder="Search using JIRA-like queries (e.g., patient.name:John AND condition.status:active)">
+                    <select name="type" class="form-select" style="max-width: 150px;">
+                        <option value="all" {% if search_type == 'all' %}selected{% endif %}>All</option>
+                        <option value="patients" {% if search_type == 'patients' %}selected{% endif %}>Patients</option>
+                        <option value="documents" {% if search_type == 'documents' %}selected{% endif %}>Documents</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+            
+            {% if not query %}
+            <div class="alert alert-info">
+                <h5>Search Tips:</h5>
+                <p>Use JIRA-like query syntax to search. Examples:</p>
+                <ul>
+                    <li><code>patient.name:John</code> - Search for patients named John</li>
+                    <li><code>document.title:"Progress Note"</code> - Search for documents with "Progress Note" in title</li>
+                    <li><code>condition.code:J45.909</code> - Search for conditions with specific code</li>
+                    <li><code>patient.city:Boston AND condition.severity:severe</code> - Complex search with AND</li>
+                    <li><code>document.content:"chest pain" OR document.content:"shortness of breath"</code> - Search with OR</li>
+                    <li><code>NOT patient.state:California</code> - Exclude results</li>
+                </ul>
+                <p>Available Fields:</p>
+                <ul>
+                    <li>Patient: name, id, gender, city, state</li>
+                    <li>Document: title, content, transcription</li>
+                    <li>Condition: code, status, severity</li>
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if query %}
+            <div class="mb-4">
+                <h4>Search Results for "{{ query }}"</h4>
+                <hr>
+            </div>
+            
+            {% if patients %}
+            <div class="mb-4">
+                <h5>Patients ({{ patients|length }})</h5>
+                <div class="list-group">
+                    {% for patient in patients %}
+                    <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
+                            <small>ID: {{ patient.identifier }}</small>
+                        </div>
+                        <small class="text-muted">
+                            {{ patient.city }}{% if patient.state %}, {{ patient.state }}{% endif %}
+                            {% if patient.conditions %}
+                            • {{ patient.conditions|length }} condition(s)
+                            {% endif %}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if documents %}
+            <div class="mb-4">
+                <h5>Documents ({{ documents|length }})</h5>
+                <div class="list-group">
+                    {% for document in documents %}
+                    <a href="{{ url_for('documents.view_document', id=document.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ document.title }}</h6>
+                            <small>{{ document.updated_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        {% if document.patient %}
+                        <small class="text-muted">
+                            Patient: {{ document.patient.family_name }}, {{ document.patient.given_name }}
+                        </small>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not patients and not documents %}
+            <div class="alert alert-warning">
+                No results found for your search.
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
