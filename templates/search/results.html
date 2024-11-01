@@ -2,20 +2,6 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/htql-suggestions.css') }}" type="text/css">
-<style>
-.suggestions-list {
-    display: block !important;
-    position: absolute !important;
-    z-index: 99999 !important;
-    background: white;
-    border: 1px solid #ced4da;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-height: 300px;
-    overflow-y: auto;
-    margin-top: 2px;
-    padding: 0;
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -126,32 +112,153 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
-console.log('Search page loaded');
-
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing search');
     const searchInput = document.getElementById('htqlSearch');
-    if (searchInput) {
-        console.log('Found search input:', searchInput);
-        // Create wrapper div for proper positioning
-        const wrapper = document.createElement('div');
-        wrapper.className = 'position-relative w-100';
-        wrapper.style.cssText = 'z-index: 1050;';
-        searchInput.parentNode.insertBefore(wrapper, searchInput);
-        wrapper.appendChild(searchInput);
-        
-        // Initialize suggestions
-        window.htqlSuggestions = new HTQLSuggestions(searchInput);
-        
-        // Test initialization
-        searchInput.value = 'patient.';
-        searchInput.dispatchEvent(new Event('input'));
-        console.log('Search initialized:', window.htqlSuggestions);
-    } else {
+    if (!searchInput) {
         console.error('Search input not found');
+        return;
     }
+
+    // Create container for suggestions
+    const suggestionContainer = document.createElement('div');
+    suggestionContainer.className = 'position-relative w-100';
+    searchInput.parentNode.insertBefore(suggestionContainer, searchInput);
+    suggestionContainer.appendChild(searchInput);
+
+    const suggestionsList = document.createElement('ul');
+    suggestionsList.className = 'suggestions-list d-none';
+    suggestionsList.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 2px;
+        padding: 0;
+        list-style: none;
+    `;
+    suggestionContainer.appendChild(suggestionsList);
+
+    // Direct event handling
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        console.log('Input value:', query);
+
+        // Show suggestions for specific patterns
+        if (query.includes('.') || query.includes(':')) {
+            const suggestions = generateSuggestions(query);
+            if (suggestions.length > 0) {
+                showSuggestions(suggestions, suggestionsList);
+            } else {
+                hideSuggestions(suggestionsList);
+            }
+        } else {
+            hideSuggestions(suggestionsList);
+        }
+    });
+
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        if (!suggestionsList.children.length) return;
+
+        const items = suggestionsList.querySelectorAll('li');
+        const selected = suggestionsList.querySelector('.selected');
+        const currentIndex = Array.from(items).indexOf(selected);
+
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectSuggestion(items, currentIndex + 1);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                selectSuggestion(items, currentIndex - 1);
+                break;
+            case 'Tab':
+            case 'Enter':
+                if (selected) {
+                    e.preventDefault();
+                    applySuggestion(selected.textContent, searchInput);
+                }
+                break;
+            case 'Escape':
+                hideSuggestions(suggestionsList);
+                break;
+        }
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!suggestionContainer.contains(e.target)) {
+            hideSuggestions(suggestionsList);
+        }
+    });
 });
+
+// Helper functions
+function generateSuggestions(query) {
+    const suggestions = [];
+    
+    if (query.includes('.')) {
+        const [category, field] = query.split('.');
+        const fields = {
+            'patient': ['name', 'id', 'gender', 'city', 'state'],
+            'document': ['title', 'content', 'transcription'],
+            'condition': ['code', 'status', 'severity']
+        };
+        
+        if (fields[category]) {
+            suggestions.push(...fields[category]
+                .filter(f => !field || f.startsWith(field))
+                .map(f => `${category}.${f}`));
+        }
+    } else if (query.includes(':')) {
+        const [field] = query.split(':');
+        if (field.includes('gender')) {
+            suggestions.push(...['male', 'female', 'other'].map(v => `${field}:${v}`));
+        } else if (field.includes('status')) {
+            suggestions.push(...['active', 'inactive', 'resolved'].map(v => `${field}:${v}`));
+        } else if (field.includes('severity')) {
+            suggestions.push(...['mild', 'moderate', 'severe'].map(v => `${field}:${v}`));
+        }
+    }
+    
+    return suggestions;
+}
+
+function showSuggestions(suggestions, suggestionsList) {
+    suggestionsList.innerHTML = suggestions
+        .map(s => `<li class="suggestion-item p-2 hover-bg-light">${s}</li>`)
+        .join('');
+    suggestionsList.classList.remove('d-none');
+}
+
+function hideSuggestions(suggestionsList) {
+    suggestionsList.classList.add('d-none');
+    suggestionsList.innerHTML = '';
+}
+
+function selectSuggestion(items, index) {
+    const validIndex = (index + items.length) % items.length;
+    items.forEach((item, i) => {
+        item.classList.toggle('selected', i === validIndex);
+        if (i === validIndex) item.scrollIntoView({ block: 'nearest' });
+    });
+}
+
+function applySuggestion(suggestion, input) {
+    const parts = input.value.split(/\s+/);
+    parts[parts.length - 1] = suggestion;
+    input.value = parts.join(' ') + ' ';
+    hideSuggestions(input.nextElementSibling);
+    input.focus();
+}
 </script>
 {% endblock %}
