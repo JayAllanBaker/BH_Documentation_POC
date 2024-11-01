@@ -210,17 +210,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const query = this.value.trim();
         console.log('Input value:', query);
 
-        // Validate query
+        // Always run validation
         const validation = validateHTQLSyntax(query);
+        
+        // Update validation indicator
         validationIndicator.style.backgroundColor = query ? 
             (validation.isValid ? '#28a745' : '#dc3545') : 'transparent';
         validationIndicator.title = validation.message || 'Valid HTQL query';
-
+        
         // Update submit button state
         const submitButton = this.closest('form').querySelector('button[type="submit"]');
         submitButton.disabled = query && !validation.isValid;
-
-        // Show suggestions for specific patterns
+        
+        // Show suggestions only if we have a valid pattern
         if (query.includes('.') || query.includes(':')) {
             const suggestions = generateSuggestions(query);
             if (suggestions.length > 0) {
@@ -335,10 +337,24 @@ function selectSuggestion(items, index) {
 }
 
 function applySuggestion(suggestion, input) {
-    const parts = input.value.split(/\s+/);
-    parts[parts.length - 1] = suggestion;
-    input.value = parts.join(' ') + ' ';
-    hideSuggestions(input.nextElementSibling);
+    const cursorPosition = input.selectionStart;
+    const inputValue = input.value;
+    const beforeCursor = inputValue.substring(0, cursorPosition);
+    const afterCursor = inputValue.substring(cursorPosition);
+    
+    // Find the last token before cursor
+    const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
+    const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
+    
+    // Construct new value
+    input.value = beforeCursor.substring(0, start) + 
+                  suggestion +
+                  (afterCursor.startsWith(' ') ? '' : ' ') +
+                  afterCursor.trim();
+    
+    // Position cursor after suggestion
+    const newPosition = start + suggestion.length + 1;
+    input.setSelectionRange(newPosition, newPosition);
     input.focus();
 }
 </script>
