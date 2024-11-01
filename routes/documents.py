@@ -12,19 +12,29 @@ documents_bp = Blueprint('documents', __name__)
 def analyze_meat_criteria(text):
     client = openai.OpenAI()
     
-    prompt = '''Analyze the following medical transcription and categorize the content into MEAT criteria:
+    prompt = '''Analyze the following medical transcription and categorize the content into MEAT criteria.
     
     Transcription:
     {text}
     
-    Please categorize the content into:
+    Please categorize the content into these sections:
     1. Monitoring: Vital signs, physical findings, symptoms, behaviors
     2. Assessment: Current clinical assessment, diagnosis updates
     3. Evaluation: Test results, responses to treatment
     4. Treatment: Medications, therapies, procedures, changes in treatment
 
-    Format the response as JSON with these fields:
-    monitoring, assessment, evaluation, treatment'''
+    Return the response in this exact format with these exact section headers:
+    Monitoring:
+    <monitoring content>
+    
+    Assessment:
+    <assessment content>
+    
+    Evaluation:
+    <evaluation content>
+    
+    Treatment:
+    <treatment content>'''
 
     try:
         response = client.chat.completions.create(
@@ -32,12 +42,35 @@ def analyze_meat_criteria(text):
             messages=[
                 {"role": "system", "content": "You are a medical documentation assistant analyzing clinical notes for MEAT criteria."},
                 {"role": "user", "content": prompt.format(text=text)}
-            ],
-            response_format={ "type": "json_object" }
+            ]
         )
         
-        result = json.loads(response.choices[0].message.content)
-        return result
+        # Parse the response text into sections
+        response_text = response.choices[0].message.content
+        sections = {}
+        current_section = None
+        current_content = []
+        
+        for line in response_text.split('\n'):
+            line = line.strip()
+            if line.endswith(':'):
+                if current_section and current_content:
+                    sections[current_section] = '\n'.join(current_content).strip()
+                current_section = line[:-1].lower()
+                current_content = []
+            elif line and current_section:
+                current_content.append(line)
+        
+        # Add the last section
+        if current_section and current_content:
+            sections[current_section] = '\n'.join(current_content).strip()
+        
+        return {
+            'monitoring': sections.get('monitoring', ''),
+            'assessment': sections.get('assessment', ''),
+            'evaluation': sections.get('evaluation', ''),
+            'treatment': sections.get('treatment', '')
+        }
     except Exception as e:
         current_app.logger.error(f'MEAT analysis error: {str(e)}')
         return None
