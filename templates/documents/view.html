@@ -24,7 +24,7 @@
             {% if document.transcription %}
             <div class="mb-4">
                 <h5>Transcription</h5>
-                <div class="bg-dark p-3 rounded">
+                <div class="border rounded p-3 bg-light">
                     <p class="mb-0">{{ document.transcription }}</p>
                 </div>
             </div>
@@ -33,13 +33,13 @@
             <div class="row mb-4">
                 <div class="col-md-6">
                     <h5>Monitoring</h5>
-                    <div class="bg-dark p-3 rounded">
+                    <div class="border rounded p-3 bg-light">
                         <p class="mb-0">{{ document.meat_monitoring or 'No monitoring information available' }}</p>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <h5>Assessment</h5>
-                    <div class="bg-dark p-3 rounded">
+                    <div class="border rounded p-3 bg-light">
                         <p class="mb-0">{{ document.meat_assessment or 'No assessment information available' }}</p>
                     </div>
                 </div>
@@ -48,13 +48,13 @@
             <div class="row mb-4">
                 <div class="col-md-6">
                     <h5>Evaluation</h5>
-                    <div class="bg-dark p-3 rounded">
+                    <div class="border rounded p-3 bg-light">
                         <p class="mb-0">{{ document.meat_evaluation or 'No evaluation information available' }}</p>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <h5>Treatment</h5>
-                    <div class="bg-dark p-3 rounded">
+                    <div class="border rounded p-3 bg-light">
                         <p class="mb-0">{{ document.meat_treatment or 'No treatment information available' }}</p>
                     </div>
                 </div>
@@ -108,7 +108,7 @@
             {% if document.content %}
             <div class="mb-4">
                 <h5>Additional Notes</h5>
-                <div class="bg-dark p-3 rounded">
+                <div class="border rounded p-3 bg-light">
                     <p class="mb-0">{{ document.content }}</p>
                 </div>
             </div>
