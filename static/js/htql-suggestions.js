@@ -1,10 +1,10 @@
 class HTQLSuggestions {
     constructor(inputElement) {
+        console.log('Initializing HTQLSuggestions');
         if (!inputElement) {
             console.error('Input element not provided');
             return;
         }
-        console.log('Initializing HTQLSuggestions with input:', inputElement);
         
         this.input = inputElement;
         this.suggestionsList = null;
@@ -12,8 +12,6 @@ class HTQLSuggestions {
         this.selectedIndex = -1;
         this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
         this.debounceTimeout = null;
-        this.retryCount = 0;
-        this.maxRetries = 3;
 
         // Initialize field mappings
         this.fields = {
@@ -38,49 +36,58 @@ class HTQLSuggestions {
         this.operators = ['AND', 'OR', 'NOT'];
 
         this.initializeSuggestions();
+        console.log('HTQLSuggestions initialization complete');
     }
 
     initializeSuggestions() {
         try {
-            console.log('Initializing suggestions, attempt:', this.retryCount + 1);
+            console.log('Creating suggestions list');
             this.createSuggestionsList();
             this.setupEventListeners();
-            console.log('Initialization successful');
+            console.log('Successfully initialized suggestions');
         } catch (error) {
-            console.error('Initialization failed:', error);
-            if (this.retryCount < this.maxRetries) {
-                this.retryCount++;
-                setTimeout(() => this.initializeSuggestions(), 100);
-            }
+            console.error('Error initializing suggestions:', error);
         }
     }
 
     createSuggestionsList() {
-        // Create suggestions container
+        console.log('Creating suggestions list');
         this.suggestionsList = document.createElement('ul');
-        this.suggestionsList.id = 'htqlSuggestionsList';
-        this.suggestionsList.className = 'suggestions-list d-none';
-        console.log('Created suggestions list:', this.suggestionsList);
-
-        if (!this.suggestionsList) {
-            throw new Error('Failed to create suggestions list');
-        }
-
-        // Set up input container
-        const wrapper = document.createElement('div');
-        wrapper.className = 'htql-input-wrapper';
+        this.suggestionsList.className = 'suggestions-list';
+        this.suggestionsList.style.cssText = `
+            position: absolute !important;
+            display: block !important;
+            z-index: 99999 !important;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 2px;
+            padding: 0;
+        `;
         
-        // Insert wrapper and move input into it
+        // Insert suggestions list after input
+        const wrapper = document.createElement('div');
+        wrapper.className = 'position-relative w-100';
+        wrapper.style.cssText = 'z-index: 1050;';
+        
         this.input.parentNode.insertBefore(wrapper, this.input);
         wrapper.appendChild(this.input);
         wrapper.appendChild(this.suggestionsList);
-        console.log('Set up input wrapper and positioned elements');
+        
+        console.log('Suggestions list created and positioned');
     }
 
     setupEventListeners() {
-        // Input event with debouncing
+        console.log('Setting up event listeners');
+        
         this.input.addEventListener('input', () => {
-            console.log('Input event fired');
+            console.log('Input event triggered');
             this.showLoadingIndicator();
             clearTimeout(this.debounceTimeout);
             this.debounceTimeout = setTimeout(() => {
@@ -88,41 +95,25 @@ class HTQLSuggestions {
             }, 150);
         });
 
-        // Keyboard navigation
         this.input.addEventListener('keydown', (e) => {
-            console.log('Keydown event fired:', e.key);
+            console.log('Keydown event:', e.key);
             this.handleKeydown(e);
         });
 
-        // Click outside to close
         document.addEventListener('click', (e) => {
             if (!this.input.contains(e.target) && !this.suggestionsList.contains(e.target)) {
-                console.log('Clicking outside, hiding suggestions');
                 this.hideSuggestions();
             }
         });
-
-        console.log('Event listeners setup completed');
-    }
-
-    showLoadingIndicator() {
-        if (this.loadingIndicator) {
-            this.loadingIndicator.classList.remove('d-none');
-        }
-    }
-
-    hideLoadingIndicator() {
-        if (this.loadingIndicator) {
-            this.loadingIndicator.classList.add('d-none');
-        }
     }
 
     handleInput() {
+        console.log('Input event triggered');
         if (!this.suggestionsList) {
             console.error('Suggestions list not initialized');
             return;
         }
-
+        
         try {
             const cursorPosition = this.input.selectionStart;
             const inputValue = this.input.value;
@@ -132,7 +123,6 @@ class HTQLSuggestions {
             console.log('Processing input:', { currentToken, tokens });
 
             if (currentToken.includes('.')) {
-                // Suggesting field values
                 const [category, field] = currentToken.split('.');
                 if (this.fields[category]) {
                     this.currentSuggestions = Object.keys(this.fields[category])
@@ -140,7 +130,6 @@ class HTQLSuggestions {
                         .map(f => `${category}.${f}`);
                 }
             } else if (currentToken.includes(':')) {
-                // Suggesting values based on field type
                 const [field, value] = currentToken.split(':');
                 if (field.includes('gender')) {
                     this.currentSuggestions = ['male', 'female', 'other']
@@ -156,15 +145,15 @@ class HTQLSuggestions {
                         .map(v => `${field}:${v}`);
                 }
             } else {
-                // Suggesting categories or operators
                 const suggestions = [...Object.keys(this.fields), ...this.operators];
                 this.currentSuggestions = suggestions.filter(s => 
                     !currentToken || s.toLowerCase().startsWith(currentToken.toLowerCase())
                 );
             }
 
-            console.log('Generated suggestions:', this.currentSuggestions);
-            
+            console.log('Current suggestions:', this.currentSuggestions);
+            console.log('Suggestions list display:', this.suggestionsList.style.display);
+
             if (this.currentSuggestions.length > 0) {
                 this.showSuggestions();
             } else {
@@ -174,6 +163,18 @@ class HTQLSuggestions {
             console.error('Error handling input:', error);
         } finally {
             this.hideLoadingIndicator();
+        }
+    }
+
+    showLoadingIndicator() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.classList.remove('d-none');
+        }
+    }
+
+    hideLoadingIndicator() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.classList.add('d-none');
         }
     }
 
