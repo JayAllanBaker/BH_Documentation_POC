@@ -126,7 +126,10 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.parentNode.insertBefore(suggestionContainer, searchInput);
     suggestionContainer.appendChild(searchInput);
 
-    // Add validation indicator
+    // Set input container position
+    searchInput.parentNode.style.position = 'relative';
+
+    // Add validation indicator with improved styles
     const validationIndicator = document.createElement('div');
     validationIndicator.className = 'validation-indicator';
     validationIndicator.style.cssText = `
@@ -137,7 +140,10 @@ document.addEventListener('DOMContentLoaded', function() {
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        transition: background-color 0.2s;
+        transition: background-color 0.3s ease;
+        z-index: 1000;
+        opacity: 1;
+        pointer-events: none;
     `;
     searchInput.parentNode.appendChild(validationIndicator);
 
@@ -159,8 +165,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const validSeverityValues = ['mild', 'moderate', 'severe'];
         
         try {
-            // Tokenize query
-            const tokens = query.split(/\s+/);
+            // Split query and normalize tokens
+            const tokens = query.split(/\s+/).map(token => {
+                // Clean up spaces around colons
+                return token.replace(/\s*:\s*/g, ':');
+            }).filter(Boolean);
+
             let isValid = true;
             let message = '';
             
@@ -171,9 +181,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!validFields[category]) {
                         isValid = false;
                         message = `Invalid category: ${category}`;
-                    } else if (field && !validFields[category].includes(field)) {
+                    } else if (field && !validFields[category].includes(field.split(':')[0])) {
                         isValid = false;
-                        message = `Invalid field: ${field} for category ${category}`;
+                        message = `Invalid field: ${field.split(':')[0]} for category ${category}`;
+                    }
+                    
+                    // Check value if it's a field:value pair
+                    if (field && field.includes(':')) {
+                        const [fieldName, value] = field.split(':');
+                        if (fieldName === 'gender' && value && !validGenderValues.includes(value)) {
+                            isValid = false;
+                            message = `Invalid gender value: ${value}`;
+                        }
                     }
                 } else if (token.includes(':')) {
                     // Validate field values
@@ -217,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
         validationIndicator.style.backgroundColor = query ? 
             (validation.isValid ? '#28a745' : '#dc3545') : 'transparent';
         validationIndicator.title = validation.message || 'Valid HTQL query';
+        validationIndicator.style.opacity = query ? '1' : '0';
         
         // Update submit button state
         const submitButton = this.closest('form').querySelector('button[type="submit"]');
@@ -288,9 +308,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Helper functions
 function generateSuggestions(query) {
     const suggestions = [];
+    const normalizedQuery = query.replace(/\s*:\s*/g, ':');
     
-    if (query.includes('.')) {
-        const [category, field] = query.split('.');
+    if (normalizedQuery.includes('.')) {
+        const [category, field] = normalizedQuery.split('.');
         const fields = {
             'patient': ['name', 'id', 'gender', 'city', 'state'],
             'document': ['title', 'content', 'transcription'],
@@ -299,11 +320,11 @@ function generateSuggestions(query) {
         
         if (fields[category]) {
             suggestions.push(...fields[category]
-                .filter(f => !field || f.startsWith(field))
+                .filter(f => !field || f.toLowerCase().startsWith(field.toLowerCase()))
                 .map(f => `${category}.${f}`));
         }
-    } else if (query.includes(':')) {
-        const [field] = query.split(':');
+    } else if (normalizedQuery.includes(':')) {
+        const [field] = normalizedQuery.split(':');
         if (field.includes('gender')) {
             suggestions.push(...['male', 'female', 'other'].map(v => `${field}:${v}`));
         } else if (field.includes('status')) {
