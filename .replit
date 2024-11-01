@@ -27,6 +27,10 @@ args = "Flask Migration"
 task = "workflow.run"
 args = "Reset Database"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Update Admin Users"
+
 [[workflows.workflow]]
 name = "Flask Server"
 author = "agent"
@@ -83,6 +87,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 reset_db.py"
+
+[[workflows.workflow]]
+name = "Update Admin Users"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 update_admin_users.py"
 
 [deployment]
 run = ["sh", "-c", "python3 app.py"]
