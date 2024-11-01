@@ -120,6 +120,21 @@
         .text-muted {
             color: #6c757d !important;
         }
+        /* Make admin badge more visible */
+        .badge.bg-warning {
+            color: #000 !important;
+            font-weight: bold;
+            padding: 0.35em 0.65em;
+        }
+        /* Make admin nav link more prominent */
+        .nav-item .nav-link.admin-link {
+            color: var(--orange) !important;
+            font-weight: 600;
+        }
+        .nav-item .nav-link.admin-link:hover {
+            color: #ffffff !important;
+            background-color: var(--orange);
+        }
     </style>
 </head>
 <body>
@@ -131,6 +146,13 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% if current_user.is_authenticated %}
+                <!-- Debug information -->
+                {% if config.DEBUG %}
+                <div class="d-none">
+                    Debug Info - User Role: {{ current_user.role }}
+                </div>
+                {% endif %}
+                
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('documents.list_documents') }}">Documents</a>
@@ -145,7 +167,9 @@
                     </li>
                     {% if current_user.role == 'admin' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
+                        <a class="nav-link admin-link" href="{{ url_for('admin.admin_dashboard') }}">
+                            <i class="bi bi-gear-fill"></i> Admin
+                        </a>
                     </li>
                     {% endif %}
                 </ul>

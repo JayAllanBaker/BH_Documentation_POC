@@ -13,11 +13,12 @@ from routes.search import search_bp
 from routes.admin import admin_bp
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)  # Changed to DEBUG level
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
+app.config['DEBUG'] = True  # Enable debug mode
 
 # Configure database
 try:
@@ -84,6 +85,13 @@ if __name__ == '__main__':
             logger.info("Database connection test successful")
             db.create_all()
             logger.info("Database tables created successfully")
+            
+            # Log all users and their roles for debugging
+            users = User.query.all()
+            logger.debug("Current users in database:")
+            for user in users:
+                logger.debug(f"Username: {user.username}, Role: {user.role}")
+                
         except Exception as e:
             logger.error(f"Database connection test failed: {str(e)}")
             raise
