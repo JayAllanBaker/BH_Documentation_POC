@@ -1,6 +1,9 @@
 from sqlalchemy import or_, and_, not_
 from models import Patient, Document, Condition
 import re
+import json
+import os
+from functools import lru_cache
 
 class HTQLParser:
     def __init__(self):
@@ -27,7 +30,10 @@ class HTQLParser:
                 'transcription': lambda v: Document.transcription.ilike(f'%{v}%')
             },
             'condition': {
-                'code': lambda v: Condition.code.ilike(f'%{v}%'),
+                'code': lambda v: or_(
+                    Condition.code.ilike(f'%{v}%'),
+                    Condition.code_system.ilike(f'%{v}%')
+                ),
                 'status': lambda v: Condition.clinical_status.ilike(f'%{v}%'),
                 'severity': lambda v: Condition.severity.ilike(f'%{v}%')
             }
@@ -106,6 +112,64 @@ class HTQLParser:
             i += 1
             
         return filters[0] if filters else None
+
+@lru_cache(maxsize=1)
+def load_medical_codes():
+    """Load ICD-10 and SNOMED CT codes from JSON files"""
+    codes = {
+        'ICD-10': {
+            'E11': 'Type 2 diabetes mellitus',
+            'E11.0': 'Type 2 diabetes mellitus with hyperosmolarity',
+            'E11.1': 'Type 2 diabetes mellitus with ketoacidosis',
+            'I10': 'Essential (primary) hypertension',
+            'I11': 'Hypertensive heart disease',
+            'J45': 'Asthma',
+            'J45.0': 'Predominantly allergic asthma',
+            'J45.1': 'Nonallergic asthma',
+            'F32': 'Major depressive disorder, single episode',
+            'F32.0': 'Major depressive disorder, single episode, mild',
+            'F32.1': 'Major depressive disorder, single episode, moderate',
+            'F41': 'Other anxiety disorders',
+            'F41.0': 'Panic disorder without agoraphobia',
+            'F41.1': 'Generalized anxiety disorder'
+        },
+        'SNOMED-CT': {
+            '44054006': 'Diabetes mellitus type 2',
+            '38341003': 'Hypertensive disorder',
+            '195967001': 'Asthma',
+            '370143000': 'Major depression',
+            '197480006': 'Anxiety disorder',
+            '371631005': 'Panic disorder',
+            '73211009': 'Diabetes mellitus',
+            '59621000': 'Essential hypertension',
+            '35489007': 'Depressive disorder',
+            '69479009': 'Allergic asthma'
+        }
+    }
+    return codes
+
+def get_code_suggestions(prefix, code_type=None):
+    """Get medical code suggestions based on prefix"""
+    codes = load_medical_codes()
+    suggestions = []
+    
+    def add_suggestions(code_system, codes_dict):
+        for code, desc in codes_dict.items():
+            if (code.lower().startswith(prefix.lower()) or 
+                desc.lower().find(prefix.lower()) != -1):
+                suggestions.append({
+                    'code': code,
+                    'description': desc,
+                    'system': code_system
+                })
+    
+    if code_type and code_type.upper() in codes:
+        add_suggestions(code_type.upper(), codes[code_type.upper()])
+    else:
+        for system, system_codes in codes.items():
+            add_suggestions(system, system_codes)
+            
+    return suggestions[:10]  # Limit to top 10 suggestions
 
 def search_patients(query):
     """Search patients using HTQL query"""

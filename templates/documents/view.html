@@ -16,8 +16,16 @@
             {% if document.patient %}
             <div class="mb-4">
                 <h5>Patient Information</h5>
-                <p class="mb-0">{{ document.patient.family_name }}, {{ document.patient.given_name }}</p>
-                <small class="text-muted">ID: {{ document.patient.identifier }}</small>
+                <p class="mb-0">
+                    <a href="{{ url_for('patients.view_patient', id=document.patient.id) }}" class="text-decoration-none">
+                        {{ document.patient.family_name }}, {{ document.patient.given_name }}
+                    </a>
+                </p>
+                <small class="text-muted">
+                    <a href="{{ url_for('patients.view_patient', id=document.patient.id) }}" class="text-decoration-none">
+                        ID: {{ document.patient.identifier }}
+                    </a>
+                </small>
             </div>
             {% endif %}
 

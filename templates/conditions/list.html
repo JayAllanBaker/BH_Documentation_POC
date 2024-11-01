@@ -3,7 +3,11 @@
 {% block content %}
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Conditions for {{ patient.family_name }}, {{ patient.given_name }}</h2>
+        <h2>Conditions for 
+            <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="text-decoration-none">
+                {{ patient.family_name }}, {{ patient.given_name }}
+            </a>
+        </h2>
         <div>
             <a href="{{ url_for('conditions.create_condition', patient_id=patient.id) }}" class="btn btn-primary">Add Condition</a>
             <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="btn btn-secondary">Back to Patient</a>

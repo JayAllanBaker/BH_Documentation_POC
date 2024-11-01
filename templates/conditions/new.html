@@ -7,7 +7,11 @@
             <div class="card">
                 <div class="card-header">
                     <h2>New Condition</h2>
-                    <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
+                    <p class="text-muted mb-0">Patient: 
+                        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="text-decoration-none">
+                            {{ patient.family_name }}, {{ patient.given_name }}
+                        </a>
+                    </p>
                 </div>
                 <div class="card-body">
                     <form method="POST">

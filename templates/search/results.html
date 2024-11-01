@@ -62,10 +62,18 @@
                     <h5>Patients ({{ patients|length }})</h5>
                     <div class="list-group">
                         {% for patient in patients %}
-                        <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="list-group-item list-group-item-action">
+                        <div class="list-group-item">
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
-                                <small>ID: {{ patient.identifier }}</small>
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="text-decoration-none">
+                                        {{ patient.family_name }}, {{ patient.given_name }}
+                                    </a>
+                                </h6>
+                                <small>
+                                    <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="text-decoration-none">
+                                        ID: {{ patient.identifier }}
+                                    </a>
+                                </small>
                             </div>
                             <small class="text-muted">
                                 {{ patient.city }}{% if patient.state %}, {{ patient.state }}{% endif %}
@@ -73,7 +81,7 @@
                                 • {{ patient.conditions|length }} condition(s)
                                 {% endif %}
                             </small>
-                        </a>
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
@@ -91,7 +99,9 @@
                             </div>
                             {% if document.patient %}
                             <small class="text-muted">
-                                Patient: {{ document.patient.family_name }}, {{ document.patient.given_name }}
+                                Patient: <a href="{{ url_for('patients.view_patient', id=document.patient.id) }}" class="text-decoration-none">
+                                    {{ document.patient.family_name }}, {{ document.patient.given_name }}
+                                </a>
                             </small>
                             {% endif %}
                         </a>
@@ -112,305 +122,13 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/htql-suggestions.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('htqlSearch');
-    if (!searchInput) {
-        console.error('Search input not found');
-        return;
+    if (searchInput) {
+        new HTQLSuggestions(searchInput);
     }
-
-    // Create container for suggestions
-    const suggestionContainer = document.createElement('div');
-    suggestionContainer.className = 'position-relative w-100';
-    searchInput.parentNode.insertBefore(suggestionContainer, searchInput);
-    suggestionContainer.appendChild(searchInput);
-
-    // Set input container position
-    searchInput.parentNode.style.position = 'relative';
-
-    // Add validation indicator
-    const validationIndicator = document.createElement('div');
-    validationIndicator.className = 'validation-indicator';
-    validationIndicator.style.cssText = `
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        transition: all 0.3s ease;
-        z-index: 1000;
-        opacity: 1;
-        pointer-events: none;
-    `;
-    searchInput.parentNode.appendChild(validationIndicator);
-
-    const suggestionsList = document.createElement('ul');
-    suggestionsList.className = 'suggestions-list d-none';
-    suggestionContainer.appendChild(suggestionsList);
-
-    function validateHTQLSyntax(query) {
-        const validFields = {
-            patient: ['name', 'id', 'gender', 'city', 'state'],
-            document: ['title', 'content', 'transcription'],
-            condition: ['code', 'status', 'severity']
-        };
-        
-        const validOperators = ['AND', 'OR', 'NOT'];
-        const validGenderValues = ['male', 'female', 'other'];
-        const validStatusValues = ['active', 'inactive', 'resolved'];
-        const validSeverityValues = ['mild', 'moderate', 'severe'];
-        
-        try {
-            const tokens = query.split(/\s+/).map(token => {
-                return token.replace(/\s*:\s*/g, ':');
-            }).filter(Boolean);
-
-            let isValid = true;
-            let message = '';
-            
-            tokens.forEach(token => {
-                if (token.includes('.')) {
-                    const [category, field] = token.split('.');
-                    if (!validFields[category]) {
-                        isValid = false;
-                        message = `Invalid category: ${category}`;
-                    } else if (field && !validFields[category].includes(field.split(':')[0])) {
-                        isValid = false;
-                        message = `Invalid field: ${field.split(':')[0]} for category ${category}`;
-                    }
-                    
-                    if (field && field.includes(':')) {
-                        const [fieldName, value] = field.split(':');
-                        if (fieldName === 'gender' && value && !validGenderValues.includes(value)) {
-                            isValid = false;
-                            message = `Invalid gender value: ${value}`;
-                        }
-                    }
-                } else if (token.includes(':')) {
-                    const [field, value] = token.split(':');
-                    if (field.includes('gender') && value && !validGenderValues.includes(value)) {
-                        isValid = false;
-                        message = `Invalid gender value: ${value}`;
-                    } else if (field.includes('status') && value && !validStatusValues.includes(value)) {
-                        isValid = false;
-                        message = `Invalid status value: ${value}`;
-                    } else if (field.includes('severity') && value && !validSeverityValues.includes(value)) {
-                        isValid = false;
-                        message = `Invalid severity value: ${value}`;
-                    }
-                } else if (token && !validOperators.includes(token)) {
-                    const isOperator = validOperators.some(op => token === op);
-                    const isValue = true;
-                    if (!isOperator && !isValue) {
-                        isValid = false;
-                        message = `Invalid token: ${token}`;
-                    }
-                }
-            });
-            
-            return { isValid, message };
-        } catch (error) {
-            return { isValid: false, message: 'Invalid query syntax' };
-        }
-    }
-
-    function updateValidationIndicator(query) {
-        const validation = validateHTQLSyntax(query);
-        validationIndicator.style.backgroundColor = query ? 
-            (validation.isValid ? '#28a745' : '#dc3545') : 'transparent';
-        validationIndicator.style.opacity = query ? '1' : '0';
-        validationIndicator.title = validation.message || 'Valid HTQL query';
-        validationIndicator.style.transition = 'all 0.3s ease';
-        
-        return validation.isValid;
-    }
-
-    function generateSuggestions(query) {
-        const suggestions = [];
-        const normalizedQuery = query.toLowerCase().trim();
-        
-        // Show field suggestions
-        if (normalizedQuery.endsWith('.')) {
-            const category = normalizedQuery.slice(0, -1);
-            const fields = {
-                'patient': ['name', 'id', 'gender', 'city', 'state'],
-                'document': ['title', 'content', 'transcription'],
-                'condition': ['code', 'status', 'severity']
-            };
-            
-            if (fields[category]) {
-                return fields[category].map(f => `${category}.${f}`);
-            }
-        }
-        
-        // Show value suggestions immediately after typing a field
-        const lastDot = normalizedQuery.lastIndexOf('.');
-        if (lastDot > -1) {
-            const category = normalizedQuery.substring(0, lastDot);
-            const field = normalizedQuery.substring(lastDot + 1);
-            
-            // Show full suggestions when typing a field name
-            if (field === 'gender' || normalizedQuery.endsWith('.gender')) {
-                return ['patient.gender:male', 'patient.gender:female', 'patient.gender:other'];
-            }
-            if (field === 'status' || normalizedQuery.endsWith('.status')) {
-                return ['condition.status:active', 'condition.status:inactive', 'condition.status:resolved'];
-            }
-            if (field === 'severity' || normalizedQuery.endsWith('.severity')) {
-                return ['condition.severity:mild', 'condition.severity:moderate', 'condition.severity:severe'];
-            }
-        }
-        
-        // Filter existing suggestions if user is typing a value
-        if (normalizedQuery.includes(':')) {
-            const [field, value = ''] = normalizedQuery.split(':');
-            if (field.includes('gender')) {
-                return ['male', 'female', 'other']
-                    .filter(v => v.startsWith(value))
-                    .map(v => `${field}:${v}`);
-            }
-            if (field.includes('status')) {
-                return ['active', 'inactive', 'resolved']
-                    .filter(v => v.startsWith(value))
-                    .map(v => `${field}:${v}`);
-            }
-            if (field.includes('severity')) {
-                return ['mild', 'moderate', 'severe']
-                    .filter(v => v.startsWith(value))
-                    .map(v => `${field}:${v}`);
-            }
-        }
-        
-        // Default suggestions for initial typing
-        if (!normalizedQuery.includes('.')) {
-            return ['patient', 'document', 'condition'];
-        }
-        
-        return suggestions;
-    }
-
-    function showSuggestions(suggestions) {
-        suggestionsList.innerHTML = suggestions
-            .map(s => `<li class="suggestion-item p-2 hover-bg-light">${s}</li>`)
-            .join('');
-        suggestionsList.classList.remove('d-none');
-    }
-
-    function hideSuggestions() {
-        suggestionsList.classList.add('d-none');
-        suggestionsList.innerHTML = '';
-    }
-
-    function selectSuggestion(items, index) {
-        const validIndex = (index + items.length) % items.length;
-        items.forEach((item, i) => {
-            item.classList.toggle('selected', i === validIndex);
-            if (i === validIndex) item.scrollIntoView({ block: 'nearest' });
-        });
-    }
-
-    function applySuggestion(suggestion, input) {
-        const cursorPosition = input.selectionStart;
-        const inputValue = input.value;
-        const beforeCursor = inputValue.substring(0, cursorPosition);
-        const afterCursor = inputValue.substring(cursorPosition);
-        
-        // Find the last token before cursor
-        const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
-        const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
-        
-        // Construct new value with proper spacing
-        input.value = beforeCursor.substring(0, start) + 
-                     suggestion +
-                     (afterCursor.startsWith(' ') ? '' : ' ') +
-                     afterCursor.trim();
-        
-        // Position cursor after suggestion
-        const newPosition = start + suggestion.length + 1;
-        input.setSelectionRange(newPosition, newPosition);
-        input.focus();
-    }
-
-    // Handle input events
-    searchInput.addEventListener('input', function() {
-        const query = this.value.trim();
-        console.log('Input value:', query);
-
-        // Always update validation
-        updateValidationIndicator(query);
-        
-        // Show suggestions based on context
-        if (query.includes('.') || query.includes(':')) {
-            const suggestions = generateSuggestions(query);
-            if (suggestions.length > 0) {
-                showSuggestions(suggestions);
-            } else {
-                hideSuggestions();
-            }
-        } else if (query) {
-            const suggestions = generateSuggestions(query);
-            if (suggestions.length > 0) {
-                showSuggestions(suggestions);
-            } else {
-                hideSuggestions();
-            }
-        } else {
-            hideSuggestions();
-        }
-    });
-
-    // Handle keyboard navigation
-    searchInput.addEventListener('keydown', function(e) {
-        if (!suggestionsList.children.length) return;
-
-        const items = suggestionsList.querySelectorAll('li');
-        const selected = suggestionsList.querySelector('.selected');
-        const currentIndex = Array.from(items).indexOf(selected);
-
-        switch(e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                selectSuggestion(items, currentIndex + 1);
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                selectSuggestion(items, currentIndex - 1);
-                break;
-            case 'Tab':
-            case 'Enter':
-                if (selected) {
-                    e.preventDefault();
-                    applySuggestion(selected.textContent, searchInput);
-                    hideSuggestions();
-                }
-                break;
-            case 'Escape':
-                hideSuggestions();
-                break;
-        }
-    });
-
-    // Add validation check before form submission
-    searchInput.closest('form').addEventListener('submit', function(e) {
-        const query = searchInput.value.trim();
-        if (query) {
-            const isValid = updateValidationIndicator(query);
-            if (!isValid) {
-                e.preventDefault();
-                alert(validationIndicator.title || 'Invalid HTQL query');
-            }
-        }
-    });
-
-    // Close suggestions when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!suggestionContainer.contains(e.target)) {
-            hideSuggestions();
-        }
-    });
 });
 </script>
 {% endblock %}
