@@ -96,16 +96,16 @@ class HTQLSuggestions {
         console.log('Input value:', inputValue);
         
         try {
-            if (inputValue.includes('condition.code:')) {
-                const parts = inputValue.split('condition.code:');
-                const searchTerm = parts[1].trim();
+            if (inputValue.includes('condition.code')) {
+                const parts = inputValue.split('condition.code');
+                const searchTerm = parts[1].trim().replace(/^[:.]/, '').trim();
                 
                 if (searchTerm) {
                     const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
                     if (response.ok) {
                         const suggestions = await response.json();
                         this.currentSuggestions = suggestions.map(s => 
-                            `condition.code:${s.code} /* ${s.description} (${s.system}) */`
+                            `condition.code:${s.code} - ${s.description} (${s.system})`
                         );
                         if (this.currentSuggestions.length > 0) {
                             this.showSuggestions();
@@ -167,40 +167,18 @@ class HTQLSuggestions {
         this.suggestionsList.style.display = 'block';
         
         this.suggestionsList.innerHTML = this.currentSuggestions
-            .map((suggestion, index) => {
-                let displayText = suggestion;
-                let additionalClass = '';
-                
-                // Handle code suggestions with comments
-                if (suggestion.includes('/*')) {
-                    const [code, comment] = suggestion.split('/*');
-                    displayText = `
-                        <div class="suggestion-code">${code.trim()}</div>
-                        <small class="suggestion-comment text-muted">${comment.replace('*/', '').trim()}</small>
-                    `;
-                    additionalClass = 'code-suggestion';
-                }
-                
-                return `
-                    <li class="suggestion-item ${additionalClass}" data-index="${index}">
-                        ${displayText}
-                    </li>
-                `;
-            })
+            .map((suggestion, index) => `
+                <li class="suggestion-item" data-index="${index}">
+                    ${suggestion}
+                </li>
+            `)
             .join('');
 
         // Add click handlers
         this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
             item.addEventListener('click', () => {
                 const index = parseInt(item.dataset.index);
-                let suggestion = this.currentSuggestions[index];
-                
-                // Remove comments from code suggestions
-                if (suggestion.includes('/*')) {
-                    suggestion = suggestion.split('/*')[0].trim();
-                }
-                
-                this.applySuggestion(suggestion);
+                this.applySuggestion(this.currentSuggestions[index]);
             });
         });
     }
@@ -231,11 +209,7 @@ class HTQLSuggestions {
             case 'Enter':
                 if (this.selectedIndex >= 0) {
                     e.preventDefault();
-                    let suggestion = this.currentSuggestions[this.selectedIndex];
-                    if (suggestion.includes('/*')) {
-                        suggestion = suggestion.split('/*')[0].trim();
-                    }
-                    this.applySuggestion(suggestion);
+                    this.applySuggestion(this.currentSuggestions[this.selectedIndex]);
                 }
                 break;
             case 'Escape':
@@ -259,24 +233,27 @@ class HTQLSuggestions {
     applySuggestion(suggestion) {
         const cursorPosition = this.input.selectionStart;
         const inputValue = this.input.value;
-        const tokens = this.tokenize(inputValue.substring(0, cursorPosition));
-        const beforeLastToken = tokens.slice(0, -1).join(' ');
+        const beforeCursor = inputValue.substring(0, cursorPosition);
         const afterCursor = inputValue.substring(cursorPosition);
-
-        this.input.value = beforeLastToken + 
-            (beforeLastToken ? ' ' : '') + 
-            suggestion + 
-            (afterCursor.startsWith(' ') ? '' : ' ') + 
-            afterCursor;
-
-        const newPosition = (beforeLastToken ? beforeLastToken + ' ' : '').length + suggestion.length + 1;
+        
+        // Extract code from suggestion if it contains a description
+        let value = suggestion;
+        if (suggestion.includes(' - ')) {
+            value = suggestion.split(' - ')[0].trim();
+        }
+        
+        // Find the last token before cursor
+        const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
+        const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
+        
+        // Replace the current token
+        this.input.value = beforeCursor.substring(0, start) + value +
+            (afterCursor.startsWith(' ') ? '' : ' ') + afterCursor.trim();
+        
+        const newPosition = start + value.length + 1;
         this.input.setSelectionRange(newPosition, newPosition);
         this.hideSuggestions();
         this.input.focus();
-    }
-
-    tokenize(text) {
-        return text.split(/\s+/).filter(Boolean);
     }
 
     showLoadingIndicator() {

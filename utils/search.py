@@ -119,8 +119,15 @@ def load_medical_codes():
     codes = {
         'ICD-10': {
             'E11': 'Type 2 diabetes mellitus',
-            'E11.0': 'Type 2 diabetes mellitus with hyperosmolarity',
-            'E11.1': 'Type 2 diabetes mellitus with ketoacidosis',
+            'E11.0': 'Type 2 diabetes with hyperosmolarity',
+            'E11.1': 'Type 2 diabetes with ketoacidosis',
+            'E11.2': 'Type 2 diabetes with kidney complications',
+            'E11.3': 'Type 2 diabetes with ophthalmic complications',
+            'E11.4': 'Type 2 diabetes with neurological complications',
+            'E11.5': 'Type 2 diabetes with circulatory complications',
+            'E11.6': 'Type 2 diabetes with other specified complications',
+            'E11.8': 'Type 2 diabetes with unspecified complications',
+            'E11.9': 'Type 2 diabetes without complications',
             'I10': 'Essential (primary) hypertension',
             'I11': 'Hypertensive heart disease',
             'J45': 'Asthma',

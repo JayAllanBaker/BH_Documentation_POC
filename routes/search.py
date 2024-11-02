@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
-from utils.search import search_patients, search_documents
+from utils.search import search_patients, search_documents, get_code_suggestions
 
 search_bp = Blueprint('search', __name__)
 
@@ -23,3 +23,9 @@ def search():
                          search_type=search_type,
                          patients=patients,
                          documents=documents)
+
+@search_bp.route('/api/code-suggestions')
+@login_required
+def code_suggestions():
+    query = request.args.get('q', '')
+    return jsonify(get_code_suggestions(query))
