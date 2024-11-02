@@ -4,6 +4,7 @@ import re
 import json
 import os
 from functools import lru_cache
+from flask import current_app
 
 class HTQLParser:
     def __init__(self):
@@ -30,10 +31,7 @@ class HTQLParser:
                 'transcription': lambda v: Document.transcription.ilike(f'%{v}%')
             },
             'condition': {
-                'code': lambda v: or_(
-                    Condition.code.ilike(f'%{v}%'),
-                    Condition.code_system.ilike(f'%{v}%')
-                ),
+                'code': lambda v: Condition.code.ilike(f'%{v}%'),
                 'status': lambda v: Condition.clinical_status.ilike(f'%{v}%'),
                 'severity': lambda v: Condition.severity.ilike(f'%{v}%')
             }
@@ -93,7 +91,6 @@ class HTQLParser:
                         else:
                             filters = [condition]
             else:
-                # Search across all searchable fields
                 conditions = []
                 for field_type in self.field_mappings.values():
                     for field_func in field_type.values():
@@ -192,64 +189,102 @@ def load_medical_codes():
 
 def get_code_suggestions(prefix, code_type=None):
     """Get medical code suggestions based on prefix"""
-    codes = load_medical_codes()
-    suggestions = []
-    
-    def add_suggestions(code_system, codes_dict):
-        for code, desc in codes_dict.items():
-            if (code.lower().startswith(prefix.lower()) or 
-                desc.lower().find(prefix.lower()) != -1):
-                suggestions.append({
-                    'code': code,
-                    'description': desc,
-                    'system': code_system
-                })
-    
-    if code_type and code_type.upper() in codes:
-        add_suggestions(code_type.upper(), codes[code_type.upper()])
-    else:
-        for system, system_codes in codes.items():
-            add_suggestions(system, system_codes)
-            
-    # Also search the database for ICD-10 codes
-    if not code_type or code_type.upper() == 'ICD-10':
-        db_suggestions = ICD10Code.search_codes(prefix)
-        for code in db_suggestions:
-            suggestions.append({
-                'code': code.code,
-                'description': code.description,
-                'system': 'ICD-10'
-            })
-    
-    # Sort suggestions by relevance (exact matches first, then starts with, then contains)
-    def sort_key(suggestion):
-        code = suggestion['code'].lower()
-        desc = suggestion['description'].lower()
-        prefix_lower = prefix.lower()
-        if code == prefix_lower:
-            return (0, code)
-        elif code.startswith(prefix_lower):
-            return (1, code)
-        elif desc.startswith(prefix_lower):
-            return (2, code)
+    try:
+        current_app.logger.debug(f'Getting code suggestions for prefix: {prefix}, type: {code_type}')
+        suggestions = []
+        seen_codes = set()  # Track seen codes to avoid duplicates
+        
+        # Search the database for ICD-10 codes first
+        if not code_type or code_type.upper() == 'ICD-10':
+            db_suggestions = ICD10Code.search_codes(prefix)
+            for code in db_suggestions:
+                if code.code not in seen_codes:
+                    suggestions.append({
+                        'code': code.code,
+                        'description': code.description,
+                        'system': 'ICD-10'
+                    })
+                    seen_codes.add(code.code)
+        
+        # Then add hardcoded codes if they're not already included
+        codes = load_medical_codes()
+        if code_type and code_type.upper() in codes:
+            add_suggestions(code_type.upper(), codes[code_type.upper()], suggestions, seen_codes)
         else:
-            return (3, code)
+            for system, system_codes in codes.items():
+                add_suggestions(system, system_codes, suggestions, seen_codes)
+        
+        # Sort suggestions by relevance
+        suggestions.sort(key=lambda x: get_sort_key(x, prefix))
+        return suggestions[:10]  # Limit to top 10 suggestions
+        
+    except Exception as e:
+        current_app.logger.error(f'Error getting code suggestions: {str(e)}')
+        return []
+
+def add_suggestions(code_system, codes_dict, suggestions, seen_codes):
+    """Helper function to add suggestions while avoiding duplicates"""
+    for code, desc in codes_dict.items():
+        if code not in seen_codes and (
+            code.lower().startswith(prefix.lower()) or 
+            desc.lower().find(prefix.lower()) != -1
+        ):
+            suggestions.append({
+                'code': code,
+                'description': desc,
+                'system': code_system
+            })
+            seen_codes.add(code)
+
+def get_sort_key(suggestion, prefix):
+    """Get sort key for suggestion relevance"""
+    code = suggestion['code'].lower()
+    desc = suggestion['description'].lower()
+    prefix_lower = prefix.lower()
     
-    suggestions.sort(key=sort_key)
-    return suggestions[:10]  # Limit to top 10 suggestions
+    if code == prefix_lower:
+        return (0, code)
+    elif code.startswith(prefix_lower):
+        return (1, code)
+    elif desc.startswith(prefix_lower):
+        return (2, code)
+    else:
+        return (3, code)
 
 def search_patients(query):
     """Search patients using HTQL query"""
-    parser = HTQLParser()
-    filter_condition = parser.build_filter(query)
-    if filter_condition is not None:
-        return Patient.query.filter(filter_condition).all()
-    return Patient.query.all()
+    try:
+        current_app.logger.debug(f'Searching patients with query: {query}')
+        parser = HTQLParser()
+        filter_condition = parser.build_filter(query)
+        if filter_condition is not None:
+            return Patient.query.join(
+                Condition, 
+                Patient.id == Condition.patient_id, 
+                isouter=True
+            ).filter(filter_condition).distinct().all()
+        return Patient.query.all()
+    except Exception as e:
+        current_app.logger.error(f'Error searching patients: {str(e)}')
+        return []
 
 def search_documents(query):
     """Search documents using HTQL query"""
-    parser = HTQLParser()
-    filter_condition = parser.build_filter(query)
-    if filter_condition is not None:
-        return Document.query.filter(filter_condition).all()
-    return Document.query.all()
+    try:
+        current_app.logger.debug(f'Searching documents with query: {query}')
+        parser = HTQLParser()
+        filter_condition = parser.build_filter(query)
+        if filter_condition is not None:
+            return Document.query.join(
+                Patient, 
+                Document.patient_id == Patient.id,
+                isouter=True
+            ).join(
+                Condition,
+                Patient.id == Condition.patient_id,
+                isouter=True
+            ).filter(filter_condition).distinct().all()
+        return Document.query.all()
+    except Exception as e:
+        current_app.logger.error(f'Error searching documents: {str(e)}')
+        return []
