@@ -15,4 +15,5 @@ dependencies = [
     "werkzeug>=3.0.6",
     "openai>=1.53.0",
     "flask-migrate>=4.0.7",
+    "requests>=2.32.3",
 ]

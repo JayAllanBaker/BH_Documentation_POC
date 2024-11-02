@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 from utils.search import search_patients, search_documents, get_code_suggestions
+from models import ICD10Code
 
 search_bp = Blueprint('search', __name__)
 
@@ -28,4 +29,19 @@ def search():
 @login_required
 def code_suggestions():
     query = request.args.get('q', '')
-    return jsonify(get_code_suggestions(query))
+    suggestions = []
+    
+    # Get ICD-10 suggestions from database
+    if query:
+        icd10_codes = ICD10Code.search_codes(query)
+        suggestions.extend([{
+            'code': code.code,
+            'description': code.description,
+            'system': 'ICD-10'
+        } for code in icd10_codes])
+        
+    # Add SNOMED CT suggestions (keep existing ones)
+    snomed_suggestions = get_code_suggestions(query)
+    suggestions.extend(snomed_suggestions)
+    
+    return jsonify(suggestions)

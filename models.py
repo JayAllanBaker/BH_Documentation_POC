@@ -2,6 +2,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from sqlalchemy import or_
 
 db = SQLAlchemy()
 
@@ -134,3 +135,20 @@ class Condition(db.Model):
         else:
             next_id = 1
         return f'C{next_id:06d}'  # Format: C000001, C000002, etc.
+
+class ICD10Code(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    @staticmethod
+    def search_codes(query, limit=10):
+        return ICD10Code.query.filter(
+            or_(
+                ICD10Code.code.ilike(f'{query}%'),
+                ICD10Code.description.ilike(f'%{query}%')
+            )
+        ).limit(limit).all()
