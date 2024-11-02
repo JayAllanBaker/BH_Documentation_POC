@@ -31,6 +31,10 @@ args = "Reset Database"
 task = "workflow.run"
 args = "Update Admin Users"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Import ICD10"
+
 [[workflows.workflow]]
 name = "Flask Server"
 author = "agent"
@@ -101,6 +105,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 update_admin_users.py"
+
+[[workflows.workflow]]
+name = "Import ICD10"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 import_icd10_codes.py"
 
 [deployment]
 run = ["sh", "-c", "python3 app.py"]

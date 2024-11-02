@@ -23,7 +23,6 @@ class HTQLSuggestions {
         console.log('Input value:', inputValue);
         
         try {
-            // Check for condition code pattern
             if (inputValue.includes('condition.code')) {
                 const parts = inputValue.split('condition.code');
                 const searchTerm = parts[1].trim().replace(/^[:.]/, '').trim();

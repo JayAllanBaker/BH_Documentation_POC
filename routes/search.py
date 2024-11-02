@@ -39,9 +39,5 @@ def code_suggestions():
             'description': code.description,
             'system': 'ICD-10'
         } for code in icd10_codes])
-        
-    # Add SNOMED CT suggestions (keep existing ones)
-    snomed_suggestions = get_code_suggestions(query)
-    suggestions.extend(snomed_suggestions)
     
     return jsonify(suggestions)
