@@ -2,11 +2,13 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required
 from models import Patient, Condition, db
 from datetime import datetime
+from utils.audit import audit_log
 
 conditions_bp = Blueprint('conditions', __name__)
 
 @conditions_bp.route('/patients/<int:patient_id>/conditions')
 @login_required
+@audit_log(action='view', resource_type='patient_conditions')
 def list_conditions(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     conditions = Condition.query.filter_by(patient_id=patient_id).all()
@@ -14,6 +16,7 @@ def list_conditions(patient_id):
 
 @conditions_bp.route('/patients/<int:patient_id>/conditions/new', methods=['GET', 'POST'])
 @login_required
+@audit_log(action='create', resource_type='condition')
 def create_condition(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     
@@ -48,11 +51,24 @@ def create_condition(patient_id):
 
 @conditions_bp.route('/conditions/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@audit_log(action='edit', resource_type='condition')
 def edit_condition(id):
     condition = Condition.query.get_or_404(id)
     
     if request.method == 'POST':
         try:
+            request.form = request.form.copy()
+            request.form['original_data'] = {
+                'clinical_status': condition.clinical_status,
+                'verification_status': condition.verification_status,
+                'category': condition.category,
+                'severity': condition.severity,
+                'code': condition.code,
+                'code_system': condition.code_system,
+                'body_site': condition.body_site,
+                'notes': condition.notes
+            }
+            
             condition.clinical_status = request.form.get('clinical_status')
             condition.verification_status = request.form.get('verification_status')
             condition.category = request.form.get('category')
@@ -86,6 +102,7 @@ def edit_condition(id):
 
 @conditions_bp.route('/conditions/<int:id>/delete', methods=['POST'])
 @login_required
+@audit_log(action='delete', resource_type='condition')
 def delete_condition(id):
     condition = Condition.query.get_or_404(id)
     patient_id = condition.patient_id

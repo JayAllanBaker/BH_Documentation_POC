@@ -8,19 +8,18 @@ def audit_log(action, resource_type):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             try:
-                # For search actions, capture search parameters
-                if action == 'search':
-                    before_value = None
-                    after_value = str(request.args)
-                # For view actions, capture resource details
-                elif action == 'view':
-                    resource_id = kwargs.get('id')
-                    before_value = None
+                resource_id = kwargs.get('id')
+                before_value = None
+                after_value = None
+
+                if action == 'view':
                     after_value = f'Viewed {resource_type} #{resource_id}'
-                # For update actions, capture changes
-                else:
+                elif action == 'edit' and request.method == 'POST':
+                    # Capture form data before and after
                     before_value = str(request.form.get('original_data', ''))
                     after_value = str(request.form)
+                elif action == 'search':
+                    after_value = str(request.args)
 
                 result = f(*args, **kwargs)
                 
@@ -28,7 +27,7 @@ def audit_log(action, resource_type):
                     user_id=current_user.id,
                     action=action,
                     resource_type=resource_type,
-                    resource_id=kwargs.get('id'),
+                    resource_id=resource_id,
                     details=str(request.form if request.form else request.args),
                     before_value=before_value,
                     after_value=after_value,

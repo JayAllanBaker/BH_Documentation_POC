@@ -42,40 +42,28 @@ class HTQLSuggestions {
         console.log('Input value:', inputValue);
         
         try {
-            if (inputValue.includes('condition.code')) {
-                const parts = inputValue.split('condition.code');
-                let searchTerm = parts[1].trim().replace(/^[:.]/, '').trim();
-                console.log('Searching for code:', searchTerm);
+            if (inputValue.includes('condition.code:')) {
+                const parts = inputValue.split('condition.code:');
+                const searchTerm = parts[1].trim();
                 
-                // Don't search if the term is too short
-                if (searchTerm.length < 1) {
-                    this.hideSuggestions();
-                    return;
-                }
-                
-                this.showLoading();
-                const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
-                this.hideLoading();
-                
-                if (response.ok) {
-                    const suggestions = await response.json();
-                    console.log('Received suggestions:', suggestions);
-                    
-                    this.currentSuggestions = suggestions.map(s => ({
-                        text: `condition.code:${s.code}`,
-                        displayText: `${s.code} - ${s.description}`,
-                        details: `(${s.system})`
-                    }));
-                    
-                    console.log('Processed suggestions:', this.currentSuggestions);
-                    
-                    if (this.currentSuggestions.length > 0) {
-                        this.showSuggestions();
-                    } else {
-                        this.hideSuggestions();
+                if (searchTerm) {
+                    this.showLoading();
+                    const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
+                    if (response.ok) {
+                        const suggestions = await response.json();
+                        console.log('Received suggestions:', suggestions);
+                        this.currentSuggestions = suggestions.map(s => ({
+                            text: `condition.code:${s.code}`,
+                            displayText: `${s.code} - ${s.description}`,
+                            details: `(${s.system})`
+                        }));
+                        if (this.currentSuggestions.length > 0) {
+                            this.showSuggestions();
+                        }
                     }
+                    this.hideLoading();
                 } else {
-                    console.error('API response error:', response.status);
+                    this.hideSuggestions();
                 }
             } else if (inputValue.includes('.') || inputValue.includes(':')) {
                 this.generateFieldSuggestions(inputValue);
@@ -110,7 +98,6 @@ class HTQLSuggestions {
                 'patient.gender': ['male', 'female', 'other']
             };
             
-            // If a specific field is being typed (e.g., condition.status)
             const fullField = query.trim();
             if (fieldValues[fullField]) {
                 suggestions.push(...fieldValues[fullField].map(v => ({
@@ -119,7 +106,6 @@ class HTQLSuggestions {
                     details: null
                 })));
             }
-            // If just the category is typed (e.g., condition.)
             else if (!field || field === '') {
                 if (fields[category]) {
                     suggestions.push(...fields[category].map(f => ({
@@ -129,7 +115,6 @@ class HTQLSuggestions {
                     })));
                 }
             }
-            // If partial field is typed (e.g., condition.st)
             else if (fields[category]) {
                 suggestions.push(...fields[category]
                     .filter(f => f.startsWith(field))
@@ -139,28 +124,9 @@ class HTQLSuggestions {
                         details: null
                     })));
             }
-        } else if (query.includes(':')) {
-            const [field] = query.split(':');
-            const fieldValues = {
-                'condition.status': ['active', 'inactive', 'resolved', 'recurrence', 'relapse', 'remission'],
-                'condition.severity': ['mild', 'moderate', 'severe'],
-                'patient.gender': ['male', 'female', 'other']
-            };
-            
-            if (fieldValues[field]) {
-                const [_, value = ''] = query.split(':');
-                suggestions.push(...fieldValues[field]
-                    .filter(v => v.toLowerCase().startsWith(value.toLowerCase()))
-                    .map(v => ({
-                        text: `${field}:${v}`,
-                        displayText: `${field}:${v}`,
-                        details: null
-                    })));
-            }
         }
         
         this.currentSuggestions = suggestions;
-        console.log('Generated field suggestions:', suggestions);
     }
 
     showSuggestions() {
@@ -184,7 +150,6 @@ class HTQLSuggestions {
             })
             .join('');
 
-        // Add click handlers
         this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
             item.addEventListener('click', () => {
                 const index = parseInt(item.dataset.index);
@@ -195,7 +160,7 @@ class HTQLSuggestions {
 
     createSuggestionsList() {
         this.suggestionsList = document.createElement('ul');
-        this.suggestionsList.className = 'suggestions-list d-none';
+        this.suggestionsList.className = 'suggestions-list';
         this.input.parentNode.appendChild(this.suggestionsList);
     }
 
@@ -257,17 +222,14 @@ class HTQLSuggestions {
         const beforeCursor = inputValue.substring(0, cursorPosition);
         const afterCursor = inputValue.substring(cursorPosition);
         
-        // Find the last token before cursor
         const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
         const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
         
-        // Construct new value
         this.input.value = beforeCursor.substring(0, start) + 
                           suggestion +
                           (afterCursor.startsWith(' ') ? '' : ' ') +
                           afterCursor.trim();
         
-        // Position cursor after suggestion
         const newPosition = start + suggestion.length + 1;
         this.input.setSelectionRange(newPosition, newPosition);
         this.input.focus();
