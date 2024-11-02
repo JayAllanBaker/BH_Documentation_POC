@@ -38,7 +38,8 @@
 .validation-indicator {
     cursor: help;
     position: absolute !important;
-    right: 10px !important;
+    left: 10px !important;  /* Change from right to left */
+    right: auto !important; /* Remove right positioning */
     top: 50% !important;
     transform: translateY(-50%) !important;
     width: 12px !important;
@@ -51,7 +52,7 @@
 }
 
 .input-group .form-control {
-    padding-right: 30px !important;
+    padding-left: 30px !important;  /* Change from padding-right */
 }
 
 .position-relative {

@@ -8,6 +8,7 @@ class HTQLSuggestions {
         
         this.setupEventListeners();
         this.createLoadingIndicator();
+        console.log('HTQLSuggestions initialized');
     }
 
     setupEventListeners() {
@@ -44,9 +45,10 @@ class HTQLSuggestions {
             if (inputValue.includes('condition.code')) {
                 const parts = inputValue.split('condition.code');
                 let searchTerm = parts[1].trim().replace(/^[:.]/, '').trim();
+                console.log('Searching for code:', searchTerm);
                 
                 // Don't search if the term is too short
-                if (searchTerm.length < 2) {
+                if (searchTerm.length < 1) {
                     this.hideSuggestions();
                     return;
                 }
@@ -57,16 +59,23 @@ class HTQLSuggestions {
                 
                 if (response.ok) {
                     const suggestions = await response.json();
+                    console.log('Received suggestions:', suggestions);
+                    
                     this.currentSuggestions = suggestions.map(s => ({
                         text: `condition.code:${s.code}`,
                         displayText: `${s.code} - ${s.description}`,
                         details: `(${s.system})`
                     }));
+                    
+                    console.log('Processed suggestions:', this.currentSuggestions);
+                    
                     if (this.currentSuggestions.length > 0) {
                         this.showSuggestions();
                     } else {
                         this.hideSuggestions();
                     }
+                } else {
+                    console.error('API response error:', response.status);
                 }
             } else if (inputValue.includes('.') || inputValue.includes(':')) {
                 this.generateFieldSuggestions(inputValue);
@@ -151,6 +160,7 @@ class HTQLSuggestions {
         }
         
         this.currentSuggestions = suggestions;
+        console.log('Generated field suggestions:', suggestions);
     }
 
     showSuggestions() {
