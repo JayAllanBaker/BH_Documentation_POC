@@ -52,11 +52,15 @@ class HTQLSuggestions {
         // Test if query matches any valid pattern
         const isValid = validPatterns.some(pattern => pattern.test(query.toLowerCase()));
         
-        // Get validation indicator
+        // Update validation indicator
         const validationIndicator = this.input.parentNode.querySelector('.validation-indicator');
         if (validationIndicator) {
             validationIndicator.classList.remove('bg-success', 'bg-danger');
             validationIndicator.classList.add(isValid ? 'bg-success' : 'bg-danger');
+            
+            // For debugging
+            console.log('Query:', query);
+            console.log('Is valid:', isValid);
         }
         
         return isValid;
@@ -64,13 +68,9 @@ class HTQLSuggestions {
 
     async handleInput() {
         const inputValue = this.input.value;
-        const validationIndicator = this.input.parentNode.querySelector('.validation-indicator');
         
-        // Update validation indicator
-        if (validationIndicator) {
-            validationIndicator.classList.remove('bg-success', 'bg-danger');
-            validationIndicator.classList.add(this.validateSyntax(inputValue) ? 'bg-success' : 'bg-danger');
-        }
+        // Validate syntax first
+        const isValid = this.validateSyntax(inputValue);
         
         try {
             if (inputValue.includes('condition.code:')) {
