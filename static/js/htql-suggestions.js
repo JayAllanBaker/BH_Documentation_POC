@@ -4,8 +4,10 @@ class HTQLSuggestions {
         this.suggestionsList = null;
         this.currentSuggestions = [];
         this.selectedIndex = -1;
+        this.loadingIndicator = null;
         
         this.setupEventListeners();
+        this.createLoadingIndicator();
     }
 
     setupEventListeners() {
@@ -18,6 +20,22 @@ class HTQLSuggestions {
         });
     }
 
+    createLoadingIndicator() {
+        this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
+    }
+
+    showLoading() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.classList.remove('d-none');
+        }
+    }
+
+    hideLoading() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.classList.add('d-none');
+        }
+    }
+
     async handleInput() {
         const inputValue = this.input.value;
         console.log('Input value:', inputValue);
@@ -25,30 +43,44 @@ class HTQLSuggestions {
         try {
             if (inputValue.includes('condition.code')) {
                 const parts = inputValue.split('condition.code');
-                const searchTerm = parts[1].trim().replace(/^[:.]/, '').trim();
+                let searchTerm = parts[1].trim().replace(/^[:.]/, '').trim();
                 
-                if (searchTerm) {
-                    const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
-                    if (response.ok) {
-                        const suggestions = await response.json();
-                        this.currentSuggestions = suggestions.map(s => 
-                            `condition.code:${s.code} - ${s.description} (${s.system})`
-                        );
-                        if (this.currentSuggestions.length > 0) {
-                            this.showSuggestions();
-                        }
+                // Don't search if the term is too short
+                if (searchTerm.length < 2) {
+                    this.hideSuggestions();
+                    return;
+                }
+                
+                this.showLoading();
+                const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
+                this.hideLoading();
+                
+                if (response.ok) {
+                    const suggestions = await response.json();
+                    this.currentSuggestions = suggestions.map(s => ({
+                        text: `condition.code:${s.code}`,
+                        displayText: `${s.code} - ${s.description}`,
+                        details: `(${s.system})`
+                    }));
+                    if (this.currentSuggestions.length > 0) {
+                        this.showSuggestions();
+                    } else {
+                        this.hideSuggestions();
                     }
                 }
             } else if (inputValue.includes('.') || inputValue.includes(':')) {
                 this.generateFieldSuggestions(inputValue);
                 if (this.currentSuggestions.length > 0) {
                     this.showSuggestions();
+                } else {
+                    this.hideSuggestions();
                 }
             } else {
                 this.hideSuggestions();
             }
         } catch (error) {
             console.error('Error handling input:', error);
+            this.hideLoading();
         }
     }
 
@@ -72,19 +104,31 @@ class HTQLSuggestions {
             // If a specific field is being typed (e.g., condition.status)
             const fullField = query.trim();
             if (fieldValues[fullField]) {
-                suggestions.push(...fieldValues[fullField].map(v => `${fullField}:${v}`));
+                suggestions.push(...fieldValues[fullField].map(v => ({
+                    text: `${fullField}:${v}`,
+                    displayText: `${fullField}:${v}`,
+                    details: null
+                })));
             }
             // If just the category is typed (e.g., condition.)
             else if (!field || field === '') {
                 if (fields[category]) {
-                    suggestions.push(...fields[category].map(f => `${category}.${f}`));
+                    suggestions.push(...fields[category].map(f => ({
+                        text: `${category}.${f}`,
+                        displayText: `${category}.${f}`,
+                        details: null
+                    })));
                 }
             }
             // If partial field is typed (e.g., condition.st)
             else if (fields[category]) {
                 suggestions.push(...fields[category]
                     .filter(f => f.startsWith(field))
-                    .map(f => `${category}.${f}`));
+                    .map(f => ({
+                        text: `${category}.${f}`,
+                        displayText: `${category}.${f}`,
+                        details: null
+                    })));
             }
         } else if (query.includes(':')) {
             const [field] = query.split(':');
@@ -98,7 +142,11 @@ class HTQLSuggestions {
                 const [_, value = ''] = query.split(':');
                 suggestions.push(...fieldValues[field]
                     .filter(v => v.toLowerCase().startsWith(value.toLowerCase()))
-                    .map(v => `${field}:${v}`));
+                    .map(v => ({
+                        text: `${field}:${v}`,
+                        displayText: `${field}:${v}`,
+                        details: null
+                    })));
             }
         }
         
@@ -115,15 +163,14 @@ class HTQLSuggestions {
         
         this.suggestionsList.innerHTML = this.currentSuggestions
             .map((suggestion, index) => {
-                let displayText = suggestion;
-                if (suggestion.includes(' - ')) {
-                    const [code, description] = suggestion.split(' - ');
-                    displayText = `<div class="d-flex justify-content-between">
-                        <strong>${code}</strong>
-                        <small class="text-muted">${description}</small>
-                    </div>`;
-                }
-                return `<li class="suggestion-item" data-index="${index}">${displayText}</li>`;
+                return `<li class="suggestion-item" data-index="${index}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="suggestion-main">
+                            <strong>${suggestion.displayText}</strong>
+                            ${suggestion.details ? `<small class="text-muted ms-2">${suggestion.details}</small>` : ''}
+                        </div>
+                    </div>
+                </li>`;
             })
             .join('');
 
@@ -131,7 +178,7 @@ class HTQLSuggestions {
         this.suggestionsList.querySelectorAll('.suggestion-item').forEach(item => {
             item.addEventListener('click', () => {
                 const index = parseInt(item.dataset.index);
-                this.applySuggestion(this.currentSuggestions[index]);
+                this.applySuggestion(this.currentSuggestions[index].text);
             });
         });
     }
@@ -165,7 +212,7 @@ class HTQLSuggestions {
             case 'Tab':
                 if (this.selectedIndex >= 0) {
                     e.preventDefault();
-                    this.applySuggestion(this.currentSuggestions[this.selectedIndex]);
+                    this.applySuggestion(this.currentSuggestions[this.selectedIndex].text);
                 }
                 break;
             case 'Escape':
@@ -200,24 +247,18 @@ class HTQLSuggestions {
         const beforeCursor = inputValue.substring(0, cursorPosition);
         const afterCursor = inputValue.substring(cursorPosition);
         
-        // Extract the base suggestion without description
-        let value = suggestion;
-        if (suggestion.includes(' - ')) {
-            value = suggestion.split(' - ')[0].trim();
-        }
-        
         // Find the last token before cursor
         const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
         const start = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
         
         // Construct new value
         this.input.value = beforeCursor.substring(0, start) + 
-                          value +
+                          suggestion +
                           (afterCursor.startsWith(' ') ? '' : ' ') +
                           afterCursor.trim();
         
         // Position cursor after suggestion
-        const newPosition = start + value.length + 1;
+        const newPosition = start + suggestion.length + 1;
         this.input.setSelectionRange(newPosition, newPosition);
         this.input.focus();
         

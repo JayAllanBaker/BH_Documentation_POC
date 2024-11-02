@@ -1,5 +1,5 @@
 from sqlalchemy import or_, and_, not_
-from models import Patient, Document, Condition
+from models import Patient, Document, Condition, ICD10Code
 import re
 import json
 import os
@@ -122,35 +122,70 @@ def load_medical_codes():
             'E11.0': 'Type 2 diabetes with hyperosmolarity',
             'E11.1': 'Type 2 diabetes with ketoacidosis',
             'E11.2': 'Type 2 diabetes with kidney complications',
+            'E11.21': 'Type 2 diabetes with diabetic nephropathy',
+            'E11.22': 'Type 2 diabetes with diabetic chronic kidney disease',
             'E11.3': 'Type 2 diabetes with ophthalmic complications',
+            'E11.31': 'Type 2 diabetes with background retinopathy',
+            'E11.32': 'Type 2 diabetes with proliferative retinopathy',
             'E11.4': 'Type 2 diabetes with neurological complications',
+            'E11.40': 'Type 2 diabetes with diabetic neuropathy, unspecified',
+            'E11.41': 'Type 2 diabetes with diabetic mononeuropathy',
+            'E11.42': 'Type 2 diabetes with diabetic polyneuropathy',
+            'E11.43': 'Type 2 diabetes with diabetic autonomic (poly)neuropathy',
             'E11.5': 'Type 2 diabetes with circulatory complications',
+            'E11.51': 'Type 2 diabetes with diabetic peripheral angiopathy without gangrene',
+            'E11.52': 'Type 2 diabetes with diabetic peripheral angiopathy with gangrene',
             'E11.6': 'Type 2 diabetes with other specified complications',
             'E11.8': 'Type 2 diabetes with unspecified complications',
             'E11.9': 'Type 2 diabetes without complications',
             'I10': 'Essential (primary) hypertension',
             'I11': 'Hypertensive heart disease',
+            'I11.0': 'Hypertensive heart disease with heart failure',
+            'I11.9': 'Hypertensive heart disease without heart failure',
             'J45': 'Asthma',
             'J45.0': 'Predominantly allergic asthma',
             'J45.1': 'Nonallergic asthma',
+            'J45.2': 'Mixed asthma',
+            'J45.3': 'Severe persistent asthma',
+            'J45.4': 'Mild intermittent asthma',
+            'J45.5': 'Mild persistent asthma',
+            'J45.9': 'Other and unspecified asthma',
             'F32': 'Major depressive disorder, single episode',
             'F32.0': 'Major depressive disorder, single episode, mild',
             'F32.1': 'Major depressive disorder, single episode, moderate',
+            'F32.2': 'Major depressive disorder, single episode, severe without psychotic features',
+            'F32.3': 'Major depressive disorder, single episode, severe with psychotic features',
+            'F32.4': 'Major depressive disorder, single episode, in partial remission',
+            'F32.5': 'Major depressive disorder, single episode, in full remission',
             'F41': 'Other anxiety disorders',
             'F41.0': 'Panic disorder without agoraphobia',
-            'F41.1': 'Generalized anxiety disorder'
+            'F41.1': 'Generalized anxiety disorder',
+            'F41.2': 'Mixed anxiety and depressive disorder',
+            'F41.3': 'Other mixed anxiety disorders',
+            'F41.8': 'Other specified anxiety disorders',
+            'F41.9': 'Anxiety disorder, unspecified'
         },
         'SNOMED-CT': {
-            '44054006': 'Diabetes mellitus type 2',
-            '38341003': 'Hypertensive disorder',
-            '195967001': 'Asthma',
-            '370143000': 'Major depression',
-            '197480006': 'Anxiety disorder',
-            '371631005': 'Panic disorder',
-            '73211009': 'Diabetes mellitus',
-            '59621000': 'Essential hypertension',
-            '35489007': 'Depressive disorder',
-            '69479009': 'Allergic asthma'
+            '44054006': 'Type 2 diabetes mellitus (disorder)',
+            '38341003': 'Hypertensive disorder, systemic arterial (disorder)',
+            '195967001': 'Asthma (disorder)',
+            '370143000': 'Major depression, single episode (disorder)',
+            '197480006': 'Anxiety disorder (disorder)',
+            '371631005': 'Panic disorder (disorder)',
+            '73211009': 'Diabetes mellitus (disorder)',
+            '59621000': 'Essential hypertension (disorder)',
+            '35489007': 'Depressive disorder (disorder)',
+            '69479009': 'Allergic asthma (disorder)',
+            '46635009': 'Type 1 diabetes mellitus (disorder)',
+            '422034002': 'Diabetic retinopathy (disorder)',
+            '421920002': 'Diabetic peripheral neuropathy (disorder)',
+            '421893009': 'Diabetic renal disease (disorder)',
+            '197591003': 'Generalized anxiety disorder (disorder)',
+            '191736004': 'Chronic depression (disorder)',
+            '191747006': 'Seasonal affective disorder (disorder)',
+            '191659001': 'Atopic asthma (disorder)',
+            '195977004': 'Asthma with status asthmaticus (disorder)',
+            '195978009': 'Mild asthma (disorder)'
         }
     }
     return codes
@@ -176,6 +211,31 @@ def get_code_suggestions(prefix, code_type=None):
         for system, system_codes in codes.items():
             add_suggestions(system, system_codes)
             
+    # Also search the database for ICD-10 codes
+    if not code_type or code_type.upper() == 'ICD-10':
+        db_suggestions = ICD10Code.search_codes(prefix)
+        for code in db_suggestions:
+            suggestions.append({
+                'code': code.code,
+                'description': code.description,
+                'system': 'ICD-10'
+            })
+    
+    # Sort suggestions by relevance (exact matches first, then starts with, then contains)
+    def sort_key(suggestion):
+        code = suggestion['code'].lower()
+        desc = suggestion['description'].lower()
+        prefix_lower = prefix.lower()
+        if code == prefix_lower:
+            return (0, code)
+        elif code.startswith(prefix_lower):
+            return (1, code)
+        elif desc.startswith(prefix_lower):
+            return (2, code)
+        else:
+            return (3, code)
+    
+    suggestions.sort(key=sort_key)
     return suggestions[:10]  # Limit to top 10 suggestions
 
 def search_patients(query):

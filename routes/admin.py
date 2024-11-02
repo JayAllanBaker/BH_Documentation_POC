@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_required, current_user
-from models import User, db
+from models import User, AuditLog, db
 from functools import wraps
+from sqlalchemy import or_
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -19,6 +20,27 @@ def admin_required(f):
 @admin_required
 def admin_dashboard():
     return render_template('admin/dashboard.html')
+
+@admin_bp.route('/admin/audit-logs')
+@login_required
+@admin_required
+def audit_logs():
+    page = request.args.get('page', 1, type=int)
+    query = request.args.get('q', '')
+    
+    logs_query = AuditLog.query.order_by(AuditLog.timestamp.desc())
+    
+    if query:
+        logs_query = logs_query.filter(
+            or_(
+                AuditLog.action.ilike(f'%{query}%'),
+                AuditLog.resource_type.ilike(f'%{query}%'),
+                AuditLog.details.ilike(f'%{query}%')
+            )
+        )
+    
+    logs = logs_query.paginate(page=page, per_page=50)
+    return render_template('admin/audit_logs.html', logs=logs, query=query)
 
 @admin_bp.route('/admin/users')
 @login_required

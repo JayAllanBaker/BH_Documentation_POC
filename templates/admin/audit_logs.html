@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Audit Logs</h2>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <form class="mb-4" method="GET">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="Search logs..." value="{{ query }}">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>Details</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs.items %}
+                        <tr>
+                            <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ log.user.username }}</td>
+                            <td>{{ log.action }}</td>
+                            <td>{{ log.resource_type }}{% if log.resource_id %} #{{ log.resource_id }}{% endif %}</td>
+                            <td><small class="text-muted">{{ log.details }}</small></td>
+                            <td>{{ log.ip_address }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if logs.pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% for page in range(1, logs.pages + 1) %}
+                    <li class="page-item {{ 'active' if page == logs.page else '' }}">
+                        <a class="page-link" href="{{ url_for('admin.audit_logs', page=page, q=query) }}">{{ page }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

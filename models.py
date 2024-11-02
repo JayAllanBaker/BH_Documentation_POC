@@ -31,6 +31,19 @@ class User(UserMixin, db.Model):
             return False
         return check_password_hash(self.password_hash, password)
 
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action = db.Column(db.String(100), nullable=False)
+    resource_type = db.Column(db.String(50), nullable=False)
+    resource_id = db.Column(db.Integer)
+    details = db.Column(db.Text)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(200))
+    
+    user = db.relationship('User', backref='audit_logs')
+
 class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)

@@ -2,11 +2,13 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required
 from utils.search import search_patients, search_documents, get_code_suggestions
 from models import ICD10Code
+from utils.audit import audit_log
 
 search_bp = Blueprint('search', __name__)
 
 @search_bp.route('/search', methods=['GET'])
 @login_required
+@audit_log(action='search', resource_type='global')
 def search():
     query = request.args.get('q', '')
     search_type = request.args.get('type', 'all')
@@ -27,6 +29,7 @@ def search():
 
 @search_bp.route('/api/code-suggestions')
 @login_required
+@audit_log(action='code_search', resource_type='icd10')
 def code_suggestions():
     query = request.args.get('q', '')
     suggestions = []
