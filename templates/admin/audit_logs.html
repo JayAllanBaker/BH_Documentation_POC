@@ -60,7 +60,7 @@
                                 {% if log.action == 'search' %}
                                     <strong>Search Parameters:</strong><br>
                                     {{ log.after_value }}
-                                {% elif log.action in ['update', 'create'] %}
+                                {% elif log.action in ['update', 'create', 'edit'] %}
                                     {% if log.before_value %}
                                         <strong>Before:</strong><br>
                                         {{ log.before_value }}<br>

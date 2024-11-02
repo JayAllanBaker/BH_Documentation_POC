@@ -84,6 +84,17 @@ class HTQLSuggestions {
     generateFieldSuggestions(query) {
         const suggestions = [];
         
+        // When user just types 'condition'
+        if (query.toLowerCase() === 'condition') {
+            suggestions.push({
+                text: 'condition.',
+                displayText: 'condition. (Select a field)',
+                details: 'code, status, severity'
+            });
+            this.currentSuggestions = suggestions;
+            return;
+        }
+        
         if (query.includes('.')) {
             const [category, field] = query.split('.');
             const fields = {
@@ -92,37 +103,40 @@ class HTQLSuggestions {
                 'condition': ['code', 'status', 'severity']
             };
             
-            const fieldValues = {
-                'condition.status': ['active', 'inactive', 'resolved', 'recurrence', 'relapse', 'remission'],
-                'condition.severity': ['mild', 'moderate', 'severe'],
-                'patient.gender': ['male', 'female', 'other']
-            };
-            
-            const fullField = query.trim();
-            if (fieldValues[fullField]) {
-                suggestions.push(...fieldValues[fullField].map(v => ({
-                    text: `${fullField}:${v}`,
-                    displayText: `${fullField}:${v}`,
-                    details: null
-                })));
-            }
-            else if (!field || field === '') {
+            // If just the category is typed (e.g., condition.)
+            if (!field || field === '') {
                 if (fields[category]) {
                     suggestions.push(...fields[category].map(f => ({
                         text: `${category}.${f}`,
                         displayText: `${category}.${f}`,
-                        details: null
+                        details: `field type: ${f}`
                     })));
                 }
             }
+            // If partial field is typed (e.g., condition.c)
             else if (fields[category]) {
                 suggestions.push(...fields[category]
-                    .filter(f => f.startsWith(field))
+                    .filter(f => f.toLowerCase().startsWith(field.toLowerCase()))
                     .map(f => ({
                         text: `${category}.${f}`,
-                        displayText: `${category}.${f}`,
-                        details: null
+                        displayText: `${category}.${f}:`,
+                        details: `field type: ${f}`
                     })));
+            }
+
+            // Add suggestions for field values
+            const fieldValues = {
+                'condition.status': ['active', 'inactive', 'resolved', 'recurrence', 'relapse', 'remission'],
+                'condition.severity': ['mild', 'moderate', 'severe']
+            };
+            
+            const fullField = `${category}.${field}`;
+            if (fieldValues[fullField]) {
+                suggestions.push(...fieldValues[fullField].map(v => ({
+                    text: `${fullField}:${v}`,
+                    displayText: `${fullField}:${v}`,
+                    details: `value for ${field}`
+                })));
             }
         }
         
