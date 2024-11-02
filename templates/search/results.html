@@ -11,6 +11,7 @@
             <form action="{{ url_for('search.search') }}" method="GET" class="mb-4">
                 <div class="input-group">
                     <div class="position-relative flex-grow-1">
+                        <div class="validation-indicator bg-success"></div>
                         <input type="text" name="q" class="form-control" id="htqlSearch"
                                value="{{ query }}" 
                                placeholder="Search using Health Trixss Query Language (HTQL) (e.g., patient.name:John AND condition.status:active)"

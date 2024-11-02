@@ -62,8 +62,6 @@ class HTQLSuggestions {
                         }
                     }
                     this.hideLoading();
-                } else {
-                    this.hideSuggestions();
                 }
             } else if (inputValue.includes('.') || inputValue.includes(':')) {
                 this.generateFieldSuggestions(inputValue);
@@ -73,7 +71,12 @@ class HTQLSuggestions {
                     this.hideSuggestions();
                 }
             } else {
-                this.hideSuggestions();
+                this.generateFieldSuggestions(inputValue);
+                if (this.currentSuggestions.length > 0) {
+                    this.showSuggestions();
+                } else {
+                    this.hideSuggestions();
+                }
             }
         } catch (error) {
             console.error('Error handling input:', error);
@@ -84,29 +87,28 @@ class HTQLSuggestions {
     generateFieldSuggestions(query) {
         const suggestions = [];
         
-        // When user just types 'condition'
-        if (query.toLowerCase() === 'condition') {
-            suggestions.push({
-                text: 'condition.',
-                displayText: 'condition. (Select a field)',
-                details: 'code, status, severity'
-            });
+        // Add top-level category suggestions
+        const categories = ['patient', 'document', 'condition'];
+        if (!query.includes('.') && !query.includes(':')) {
+            suggestions.push(...categories.filter(c => 
+                c.toLowerCase().startsWith(query.toLowerCase())
+            ).map(c => ({
+                text: `${c}.`,
+                displayText: `${c}. (Select a field)`,
+                details: 'Available fields: ' + this.getFieldsForCategory(c).join(', ')
+            })));
             this.currentSuggestions = suggestions;
             return;
         }
         
         if (query.includes('.')) {
             const [category, field] = query.split('.');
-            const fields = {
-                'patient': ['name', 'id', 'gender', 'city', 'state'],
-                'document': ['title', 'content', 'transcription'],
-                'condition': ['code', 'status', 'severity']
-            };
+            const fields = this.getFieldsForCategory(category);
             
             // If just the category is typed (e.g., condition.)
             if (!field || field === '') {
-                if (fields[category]) {
-                    suggestions.push(...fields[category].map(f => ({
+                if (fields.length > 0) {
+                    suggestions.push(...fields.map(f => ({
                         text: `${category}.${f}`,
                         displayText: `${category}.${f}`,
                         details: `field type: ${f}`
@@ -114,8 +116,8 @@ class HTQLSuggestions {
                 }
             }
             // If partial field is typed (e.g., condition.c)
-            else if (fields[category]) {
-                suggestions.push(...fields[category]
+            else if (fields.length > 0) {
+                suggestions.push(...fields
                     .filter(f => f.toLowerCase().startsWith(field.toLowerCase()))
                     .map(f => ({
                         text: `${category}.${f}`,
@@ -141,6 +143,16 @@ class HTQLSuggestions {
         }
         
         this.currentSuggestions = suggestions;
+    }
+
+    // Add helper method to get fields for a category
+    getFieldsForCategory(category) {
+        const fields = {
+            'patient': ['name', 'id', 'gender', 'city', 'state'],
+            'document': ['title', 'content', 'transcription'],
+            'condition': ['code', 'status', 'severity']
+        };
+        return fields[category] || [];
     }
 
     showSuggestions() {

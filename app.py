@@ -11,6 +11,7 @@ from routes.main import main_bp
 from routes.conditions import conditions_bp
 from routes.search import search_bp
 from routes.admin import admin_bp
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)  # Changed to DEBUG level
@@ -67,6 +68,14 @@ login_manager.login_view = 'auth.login'
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Add from_json filter
+@app.template_filter('from_json')
+def from_json(value):
+    try:
+        return json.loads(value.replace("'", '"'))
+    except:
+        return None
 
 # Register blueprints
 app.register_blueprint(main_bp)
