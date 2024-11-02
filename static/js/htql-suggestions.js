@@ -64,19 +64,42 @@ class HTQLSuggestions {
                 'condition': ['code', 'status', 'severity']
             };
             
-            if (fields[category]) {
+            const fieldValues = {
+                'condition.status': ['active', 'inactive', 'resolved', 'recurrence', 'relapse', 'remission'],
+                'condition.severity': ['mild', 'moderate', 'severe'],
+                'patient.gender': ['male', 'female', 'other']
+            };
+            
+            // If a specific field is being typed (e.g., condition.status)
+            const fullField = query.trim();
+            if (fieldValues[fullField]) {
+                suggestions.push(...fieldValues[fullField].map(v => `${fullField}:${v}`));
+            }
+            // If just the category is typed (e.g., condition.)
+            else if (!field || field === '') {
+                if (fields[category]) {
+                    suggestions.push(...fields[category].map(f => `${category}.${f}`));
+                }
+            }
+            // If partial field is typed (e.g., condition.st)
+            else if (fields[category]) {
                 suggestions.push(...fields[category]
-                    .filter(f => !field || f.startsWith(field))
+                    .filter(f => f.startsWith(field))
                     .map(f => `${category}.${f}`));
             }
         } else if (query.includes(':')) {
             const [field] = query.split(':');
-            if (field.includes('gender')) {
-                suggestions.push(...['male', 'female', 'other'].map(v => `${field}:${v}`));
-            } else if (field.includes('status')) {
-                suggestions.push(...['active', 'inactive', 'resolved'].map(v => `${field}:${v}`));
-            } else if (field.includes('severity')) {
-                suggestions.push(...['mild', 'moderate', 'severe'].map(v => `${field}:${v}`));
+            const fieldValues = {
+                'condition.status': ['active', 'inactive', 'resolved', 'recurrence', 'relapse', 'remission'],
+                'condition.severity': ['mild', 'moderate', 'severe'],
+                'patient.gender': ['male', 'female', 'other']
+            };
+            
+            if (fieldValues[field]) {
+                const [_, value = ''] = query.split(':');
+                suggestions.push(...fieldValues[field]
+                    .filter(v => v.toLowerCase().startsWith(value.toLowerCase()))
+                    .map(v => `${field}:${v}`));
             }
         }
         
