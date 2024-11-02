@@ -25,7 +25,7 @@
                             <th>User</th>
                             <th>Action</th>
                             <th>Resource</th>
-                            <th>Changes</th>
+                            <th>Details</th>
                             <th>IP Address</th>
                         </tr>
                     </thead>
@@ -34,7 +34,7 @@
                         <tr>
                             <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             <td>{{ log.user.username }}</td>
-                            <td>{{ log.action }}</td>
+                            <td>{{ log.action|title }}</td>
                             <td>
                                 {% if log.resource_id %}
                                     {% if log.resource_type == 'patient' %}
@@ -57,15 +57,42 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if log.action == 'search' %}
-                                    <strong>Search Parameters:</strong><br>
-                                    {{ log.after_value }}
-                                {% elif log.action in ['update', 'create', 'edit'] %}
+                                {% if log.action == 'view' %}
+                                    {% set after_dict = log.after_value|from_json %}
+                                    {% if after_dict %}
+                                        <strong>{{ after_dict.action }}</strong><br>
+                                        {% for key, value in after_dict.items() %}
+                                            {% if key != 'action' %}
+                                                <strong>{{ key|title }}:</strong> {{ value }}<br>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        {{ log.after_value or log.details }}
+                                    {% endif %}
+                                {% elif log.action == 'edit' %}
                                     {% if log.before_value %}
-                                        <strong>Before:</strong><br>
-                                        {{ log.before_value }}<br>
-                                        <strong>After:</strong><br>
-                                        {{ log.after_value }}
+                                        <div class="mb-2">
+                                            <strong>Before:</strong><br>
+                                            {% set before_dict = log.before_value|from_json %}
+                                            {% if before_dict %}
+                                                {% for key, value in before_dict.items() %}
+                                                    <strong>{{ key|title }}:</strong> {{ value }}<br>
+                                                {% endfor %}
+                                            {% else %}
+                                                {{ log.before_value }}
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <strong>After:</strong><br>
+                                            {% set after_dict = log.after_value|from_json %}
+                                            {% if after_dict %}
+                                                {% for key, value in after_dict.items() %}
+                                                    <strong>{{ key|title }}:</strong> {{ value }}<br>
+                                                {% endfor %}
+                                            {% else %}
+                                                {{ log.after_value }}
+                                            {% endif %}
+                                        </div>
                                     {% else %}
                                         {{ log.after_value }}
                                     {% endif %}

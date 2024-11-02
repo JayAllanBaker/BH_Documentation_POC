@@ -2,6 +2,7 @@ from functools import wraps
 from flask import request, current_app
 from flask_login import current_user
 from models import db, AuditLog, Patient, Document, Condition
+import json
 
 def audit_log(action, resource_type):
     def decorator(f):
@@ -13,9 +14,33 @@ def audit_log(action, resource_type):
                 after_value = None
 
                 if action == 'view':
-                    after_value = f'Viewed {resource_type} #{resource_id}'
+                    if resource_type == 'patient':
+                        patient = Patient.query.get(resource_id)
+                        after_value = {
+                            'action': 'View patient details',
+                            'patient_name': f'{patient.family_name}, {patient.given_name}',
+                            'id': patient.identifier,
+                            'type': 'Patient record view'
+                        }
+                    elif resource_type == 'document':
+                        document = Document.query.get(resource_id)
+                        after_value = {
+                            'action': 'View document',
+                            'title': document.title,
+                            'patient': f'{document.patient.family_name}, {document.patient.given_name}' if document.patient else 'No patient',
+                            'type': 'Document view'
+                        }
+                    elif resource_type == 'condition':
+                        condition = Condition.query.get(resource_id)
+                        after_value = {
+                            'action': 'View condition',
+                            'code': condition.code,
+                            'description': condition.notes,
+                            'patient': f'{condition.patient.family_name}, {condition.patient.given_name}',
+                            'type': 'Condition view'
+                        }
                 elif action == 'edit' and request.method == 'POST':
-                    # Get original data
+                    # Get original data before changes
                     if resource_type == 'patient':
                         original = Patient.query.get(resource_id)
                         before_value = {
@@ -37,22 +62,28 @@ def audit_log(action, resource_type):
                         before_value = {
                             'code': original.code,
                             'status': original.clinical_status,
-                            'severity': original.severity
+                            'severity': original.severity,
+                            'notes': original.notes
                         }
                     after_value = dict(request.form)
                 elif action == 'search':
-                    after_value = str(request.args)
+                    after_value = {
+                        'action': 'Perform search',
+                        'query': str(request.args.get('q', '')),
+                        'type': str(request.args.get('type', 'all'))
+                    }
 
                 result = f(*args, **kwargs)
                 
+                # Create audit log entry
                 log = AuditLog(
                     user_id=current_user.id,
                     action=action,
                     resource_type=resource_type,
                     resource_id=resource_id,
                     details=str(request.form if request.form else request.args),
-                    before_value=str(before_value) if before_value else None,
-                    after_value=str(after_value) if after_value else None,
+                    before_value=json.dumps(before_value) if before_value else None,
+                    after_value=json.dumps(after_value) if after_value else None,
                     ip_address=request.remote_addr,
                     user_agent=request.user_agent.string
                 )

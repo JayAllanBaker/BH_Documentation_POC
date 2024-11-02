@@ -37,9 +37,31 @@ class HTQLSuggestions {
         }
     }
 
+    // Add method to validate syntax
+    validateSyntax(query) {
+        if (!query) return true;
+        
+        // Basic syntax validation rules
+        const validPatterns = [
+            /^[a-z]+$/,  // Just a word
+            /^[a-z]+\.$/,  // Category with dot
+            /^[a-z]+\.[a-z]+$/,  // Category.field
+            /^[a-z]+\.[a-z]+:.*$/,  // Category.field:value
+            /^.*\s+(AND|OR|NOT)\s+.*$/  // Logical operators
+        ];
+        
+        return validPatterns.some(pattern => pattern.test(query.toLowerCase()));
+    }
+
     async handleInput() {
         const inputValue = this.input.value;
-        console.log('Input value:', inputValue);
+        const validationIndicator = this.input.parentNode.querySelector('.validation-indicator');
+        
+        // Update validation indicator
+        if (validationIndicator) {
+            validationIndicator.classList.remove('bg-success', 'bg-danger');
+            validationIndicator.classList.add(this.validateSyntax(inputValue) ? 'bg-success' : 'bg-danger');
+        }
         
         try {
             if (inputValue.includes('condition.code:')) {
@@ -51,7 +73,6 @@ class HTQLSuggestions {
                     const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
                     if (response.ok) {
                         const suggestions = await response.json();
-                        console.log('Received suggestions:', suggestions);
                         this.currentSuggestions = suggestions.map(s => ({
                             text: `condition.code:${s.code}`,
                             displayText: `${s.code} - ${s.description}`,
@@ -110,7 +131,7 @@ class HTQLSuggestions {
                 if (fields.length > 0) {
                     suggestions.push(...fields.map(f => ({
                         text: `${category}.${f}`,
-                        displayText: `${category}.${f}`,
+                        displayText: `${category}.${f}:`,
                         details: `field type: ${f}`
                     })));
                 }
@@ -145,7 +166,6 @@ class HTQLSuggestions {
         this.currentSuggestions = suggestions;
     }
 
-    // Add helper method to get fields for a category
     getFieldsForCategory(category) {
         const fields = {
             'patient': ['name', 'id', 'gender', 'city', 'state'],
@@ -253,10 +273,9 @@ class HTQLSuggestions {
         
         this.input.value = beforeCursor.substring(0, start) + 
                           suggestion +
-                          (afterCursor.startsWith(' ') ? '' : ' ') +
-                          afterCursor.trim();
+                          afterCursor;
         
-        const newPosition = start + suggestion.length + 1;
+        const newPosition = start + suggestion.length;
         this.input.setSelectionRange(newPosition, newPosition);
         this.input.focus();
         
