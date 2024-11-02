@@ -76,7 +76,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "export FLASK_APP=app.py && flask db migrate -m 'Add AuditLog table' && flask db upgrade"
+args = "export FLASK_APP=app.py && flask db migrate -m 'Add before_value and after_value to AuditLog' && flask db upgrade"
 
 [[workflows.workflow]]
 name = "Reset Database"

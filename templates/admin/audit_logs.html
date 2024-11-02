@@ -25,7 +25,7 @@
                             <th>User</th>
                             <th>Action</th>
                             <th>Resource</th>
-                            <th>Details</th>
+                            <th>Changes</th>
                             <th>IP Address</th>
                         </tr>
                     </thead>
@@ -35,8 +35,44 @@
                             <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             <td>{{ log.user.username }}</td>
                             <td>{{ log.action }}</td>
-                            <td>{{ log.resource_type }}{% if log.resource_id %} #{{ log.resource_id }}{% endif %}</td>
-                            <td><small class="text-muted">{{ log.details }}</small></td>
+                            <td>
+                                {% if log.resource_id %}
+                                    {% if log.resource_type == 'patient' %}
+                                        <a href="{{ url_for('patients.view_patient', id=log.resource_id) }}">
+                                            {{ log.resource_type|title }} #{{ log.resource_id }}
+                                        </a>
+                                    {% elif log.resource_type == 'document' %}
+                                        <a href="{{ url_for('documents.view_document', id=log.resource_id) }}">
+                                            {{ log.resource_type|title }} #{{ log.resource_id }}
+                                        </a>
+                                    {% elif log.resource_type == 'condition' %}
+                                        <a href="{{ url_for('conditions.edit_condition', id=log.resource_id) }}">
+                                            {{ log.resource_type|title }} #{{ log.resource_id }}
+                                        </a>
+                                    {% else %}
+                                        {{ log.resource_type|title }} #{{ log.resource_id }}
+                                    {% endif %}
+                                {% else %}
+                                    {{ log.resource_type|title }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.action == 'search' %}
+                                    <strong>Search Parameters:</strong><br>
+                                    {{ log.after_value }}
+                                {% elif log.action in ['update', 'create'] %}
+                                    {% if log.before_value %}
+                                        <strong>Before:</strong><br>
+                                        {{ log.before_value }}<br>
+                                        <strong>After:</strong><br>
+                                        {{ log.after_value }}
+                                    {% else %}
+                                        {{ log.after_value }}
+                                    {% endif %}
+                                {% else %}
+                                    {{ log.after_value or log.details }}
+                                {% endif %}
+                            </td>
                             <td>{{ log.ip_address }}</td>
                         </tr>
                         {% endfor %}
