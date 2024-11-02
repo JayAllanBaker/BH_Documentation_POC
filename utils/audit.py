@@ -40,7 +40,6 @@ def audit_log(action, resource_type):
                             'type': 'Condition view'
                         }
                 elif action == 'edit' and request.method == 'POST':
-                    # Get original data before changes
                     if resource_type == 'patient':
                         original = Patient.query.get(resource_id)
                         before_value = {

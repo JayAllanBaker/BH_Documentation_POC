@@ -37,20 +37,29 @@ class HTQLSuggestions {
         }
     }
 
-    // Add method to validate syntax
     validateSyntax(query) {
         if (!query) return true;
         
         // Basic syntax validation rules
         const validPatterns = [
-            /^[a-z]+$/,  // Just a word
+            /^[a-z]+$/,  // Single word (category)
             /^[a-z]+\.$/,  // Category with dot
             /^[a-z]+\.[a-z]+$/,  // Category.field
             /^[a-z]+\.[a-z]+:.*$/,  // Category.field:value
             /^.*\s+(AND|OR|NOT)\s+.*$/  // Logical operators
         ];
         
-        return validPatterns.some(pattern => pattern.test(query.toLowerCase()));
+        // Test if query matches any valid pattern
+        const isValid = validPatterns.some(pattern => pattern.test(query.toLowerCase()));
+        
+        // Get validation indicator
+        const validationIndicator = this.input.parentNode.querySelector('.validation-indicator');
+        if (validationIndicator) {
+            validationIndicator.classList.remove('bg-success', 'bg-danger');
+            validationIndicator.classList.add(isValid ? 'bg-success' : 'bg-danger');
+        }
+        
+        return isValid;
     }
 
     async handleInput() {
@@ -130,8 +139,8 @@ class HTQLSuggestions {
             if (!field || field === '') {
                 if (fields.length > 0) {
                     suggestions.push(...fields.map(f => ({
-                        text: `${category}.${f}`,
-                        displayText: `${category}.${f}:`,
+                        text: `${category}.${f}:`,  // Add colon here
+                        displayText: `${category}.${f}`,
                         details: `field type: ${f}`
                     })));
                 }
@@ -141,8 +150,8 @@ class HTQLSuggestions {
                 suggestions.push(...fields
                     .filter(f => f.toLowerCase().startsWith(field.toLowerCase()))
                     .map(f => ({
-                        text: `${category}.${f}`,
-                        displayText: `${category}.${f}:`,
+                        text: `${category}.${f}:`,  // Add colon here
+                        displayText: `${category}.${f}`,
                         details: `field type: ${f}`
                     })));
             }
