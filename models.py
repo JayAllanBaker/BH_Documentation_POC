@@ -44,6 +44,11 @@ class AuditLog(db.Model):
     
     user = db.relationship('User', backref='audit_logs')
 
+    __table_args__ = (
+        db.Index('idx_audit_timestamp', 'timestamp'),
+        db.Index('idx_audit_action_type', 'action', 'resource_type'),
+    )
+
 class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -59,6 +64,12 @@ class Document(db.Model):
     meat_treatment = db.Column(db.Text)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=True)
 
+    __table_args__ = (
+        db.Index('idx_document_title', 'title'),
+        db.Index('idx_document_content', 'content'),
+        db.Index('idx_document_patient', 'patient_id'),
+    )
+
 class PatientIdentifier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
@@ -66,6 +77,10 @@ class PatientIdentifier(db.Model):
     identifier_value = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('idx_patient_identifier_type_value', 'identifier_type', 'identifier_value'),
+    )
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -87,6 +102,12 @@ class Patient(db.Model):
     documents = db.relationship('Document', backref='patient', lazy=True)
     identifiers = db.relationship('PatientIdentifier', backref='patient', lazy=True, cascade='all, delete-orphan')
     conditions = db.relationship('Condition', backref='patient', lazy=True, cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('idx_patient_name', 'family_name', 'given_name'),
+        db.Index('idx_patient_identifier', 'identifier'),
+        db.Index('idx_patient_location', 'city', 'state', 'country'),
+    )
 
     @staticmethod
     def generate_identifier():
@@ -117,6 +138,12 @@ class Condition(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        db.Index('idx_condition_code', 'code'),
+        db.Index('idx_condition_status', 'clinical_status'),
+        db.Index('idx_condition_patient', 'patient_id'),
+    )
+
     @staticmethod
     def generate_identifier():
         latest_condition = Condition.query.order_by(Condition.id.desc()).first()
@@ -133,6 +160,11 @@ class ICD10Code(db.Model):
     category = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('idx_icd10_code', 'code'),
+        db.Index('idx_icd10_description', 'description'),
+    )
     
     @staticmethod
     def search_codes(query, limit=10):

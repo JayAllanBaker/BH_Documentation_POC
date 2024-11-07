@@ -1,16 +1,17 @@
 class HTQLSuggestions {
     constructor(input) {
+        // Cache DOM elements
         this.input = input;
-        this.suggestionsList = null;
+        this.validationIndicator = input.parentNode.querySelector('.validation-indicator');
+        this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
+        this.suggestionCache = new Map();
+        this.debounceTimer = null;
+        this.debounceDelay = 300;
+        this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
         this.currentSuggestions = [];
         this.selectedIndex = -1;
-        this.loadingIndicator = null;
-        this.lastQuery = '';
-        this.lastRequestTime = 0;
-        this.debounceDelay = 300;
         
         this.setupEventListeners();
-        this.createLoadingIndicator();
         console.log('HTQLSuggestions initialized');
     }
 
@@ -22,10 +23,6 @@ class HTQLSuggestions {
                 this.hideSuggestions();
             }
         });
-    }
-
-    createLoadingIndicator() {
-        this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
     }
 
     showLoading() {
@@ -43,11 +40,10 @@ class HTQLSuggestions {
     validateSyntax(query) {
         if (!query) return true;
         
-        const validationIndicator = this.input.parentNode.querySelector('.validation-indicator');
-        if (!validationIndicator) return true;
+        if (!this.validationIndicator) return true;
 
         // Remove existing classes
-        validationIndicator.classList.remove('bg-success', 'bg-danger');
+        this.validationIndicator.classList.remove('bg-success', 'bg-danger');
         
         // Basic syntax validation rules
         const validPatterns = [
@@ -70,76 +66,72 @@ class HTQLSuggestions {
         // Check for invalid patterns first
         const hasInvalidPattern = invalidPatterns.some(pattern => pattern.test(query.toLowerCase()));
         if (hasInvalidPattern) {
-            validationIndicator.classList.add('bg-danger');
+            this.validationIndicator.classList.add('bg-danger');
             console.log('Invalid syntax:', query);
             return false;
         }
         
         // Check for valid patterns
         const isValid = validPatterns.some(pattern => pattern.test(query.toLowerCase()));
-        validationIndicator.classList.add(isValid ? 'bg-success' : 'bg-danger');
+        this.validationIndicator.classList.add(isValid ? 'bg-success' : 'bg-danger');
         console.log('Query:', query, 'Valid:', isValid);
         
         return isValid;
     }
 
-    async handleInput() {
-        const inputValue = this.input.value;
-        const currentTime = Date.now();
+    async getCodeSuggestions(searchTerm) {
+        const cacheKey = `code:${searchTerm}`;
+        const cached = this.suggestionCache.get(cacheKey);
         
-        // Always validate syntax first
-        this.validateSyntax(inputValue);
-        
-        // Debounce API calls
-        if (currentTime - this.lastRequestTime < this.debounceDelay) {
-            return;
+        if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+            return cached.data;
         }
-        
+
         try {
-            // Handle ICD-10 and SNOMED CT code suggestions
-            if (inputValue.includes('condition.code:')) {
-                const parts = inputValue.split('condition.code:');
-                const searchTerm = parts[1].trim();
-                
-                if (searchTerm && searchTerm !== this.lastQuery) {
-                    this.lastQuery = searchTerm;
-                    this.lastRequestTime = currentTime;
-                    this.showLoading();
-                    
-                    // Fetch both ICD-10 and SNOMED CT suggestions
-                    const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
-                    if (response.ok) {
-                        const suggestions = await response.json();
-                        this.currentSuggestions = suggestions.map(s => ({
+            const response = await fetch(`/api/code-suggestions?q=${encodeURIComponent(searchTerm)}`);
+            if (response.ok) {
+                const suggestions = await response.json();
+                this.suggestionCache.set(cacheKey, {
+                    data: suggestions,
+                    timestamp: Date.now()
+                });
+                return suggestions;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching code suggestions:', error);
+            return [];
+        }
+    }
+
+    async handleInput() {
+        clearTimeout(this.debounceTimer);
+        
+        this.debounceTimer = setTimeout(async () => {
+            const inputValue = this.input.value;
+            this.validateSyntax(inputValue);
+            
+            try {
+                if (inputValue.includes('condition.code:')) {
+                    const searchTerm = inputValue.split('condition.code:')[1].trim();
+                    if (searchTerm) {
+                        this.showLoading();
+                        const suggestions = await this.getCodeSuggestions(searchTerm);
+                        this.updateSuggestions(suggestions.map(s => ({
                             text: `condition.code:${s.code}`,
                             displayText: `${s.code} - ${s.description}`,
                             details: `(${s.system})`
-                        }));
-                        if (this.currentSuggestions.length > 0) {
-                            this.showSuggestions();
-                        }
+                        })));
                     }
-                }
-            } else if (inputValue.includes('.') || inputValue.includes(':')) {
-                this.generateFieldSuggestions(inputValue);
-                if (this.currentSuggestions.length > 0) {
-                    this.showSuggestions();
                 } else {
-                    this.hideSuggestions();
+                    this.generateFieldSuggestions(inputValue);
                 }
-            } else {
-                this.generateFieldSuggestions(inputValue);
-                if (this.currentSuggestions.length > 0) {
-                    this.showSuggestions();
-                } else {
-                    this.hideSuggestions();
-                }
+            } catch (error) {
+                console.error('Error handling input:', error);
+            } finally {
+                this.hideLoading();
             }
-        } catch (error) {
-            console.error('Error handling input:', error);
-        } finally {
-            this.hideLoading();
-        }
+        }, this.debounceDelay);
     }
 
     handleKeydown(e) {
@@ -180,10 +172,21 @@ class HTQLSuggestions {
     }
 
     updateSelection() {
-        const items = this.suggestionsList.querySelectorAll('.suggestion-item');
+        const items = this.suggestionsList?.querySelectorAll('.suggestion-item');
+        if (!items) return;
+        
         items.forEach((item, index) => {
             item.classList.toggle('selected', index === this.selectedIndex);
         });
+    }
+
+    updateSuggestions(suggestions) {
+        this.currentSuggestions = suggestions;
+        if (suggestions.length > 0) {
+            this.showSuggestions();
+        } else {
+            this.hideSuggestions();
+        }
     }
 
     applyCurrent() {
@@ -277,6 +280,6 @@ class HTQLSuggestions {
             }
         }
         
-        this.currentSuggestions = suggestions;
+        this.updateSuggestions(suggestions);
     }
 }
