@@ -38,12 +38,13 @@ class HTQLSuggestions {
     }
 
     validateSyntax(query) {
-        if (!query) return true;
-        
-        if (!this.validationIndicator) return true;
-
-        // Remove existing classes
-        this.validationIndicator.classList.remove('bg-success', 'bg-danger');
+        if (!query) {
+            if (this.validationIndicator) {
+                this.validationIndicator.classList.remove('bg-success', 'bg-danger');
+                this.validationIndicator.classList.add('bg-success');
+            }
+            return true;
+        }
         
         // Basic syntax validation rules
         const validPatterns = [
@@ -54,28 +55,32 @@ class HTQLSuggestions {
             /^.*\s+(AND|OR|NOT)\s+.*$/  // Logical operators
         ];
         
-        // Invalid patterns
+        // Invalid patterns that should trigger red indicator
         const invalidPatterns = [
-            /^[a-z]+:.+$/,  // Missing field (e.g., patient:value)
-            /^[^a-z\s]+/,  // Starting with non-letter
-            /\s+$/,  // Ending with whitespace
-            /:[^a-z0-9\s]/,  // Invalid characters after colon
-            /\.[^a-z]/  // Invalid characters after dot
+            /^[^a-z]+/,  // Must start with letter
+            /[^a-z0-9\s:\.]/,  // Only allow letters, numbers, spaces, colons, and dots
+            /\.(?![a-z])/,  // Dot must be followed by letter
+            /:[^a-z0-9]/  // Colon must be followed by letter or number
         ];
         
         // Check for invalid patterns first
         const hasInvalidPattern = invalidPatterns.some(pattern => pattern.test(query.toLowerCase()));
         if (hasInvalidPattern) {
-            this.validationIndicator.classList.add('bg-danger');
-            console.log('Invalid syntax:', query);
+            if (this.validationIndicator) {
+                this.validationIndicator.classList.remove('bg-success', 'bg-danger');
+                this.validationIndicator.classList.add('bg-danger');
+            }
+            console.log('Invalid pattern detected:', query);
             return false;
         }
         
         // Check for valid patterns
         const isValid = validPatterns.some(pattern => pattern.test(query.toLowerCase()));
-        this.validationIndicator.classList.add(isValid ? 'bg-success' : 'bg-danger');
-        console.log('Query:', query, 'Valid:', isValid);
-        
+        if (this.validationIndicator) {
+            this.validationIndicator.classList.remove('bg-success', 'bg-danger');
+            this.validationIndicator.classList.add(isValid ? 'bg-success' : 'bg-danger');
+        }
+        console.log('Query validation:', query, isValid);
         return isValid;
     }
 
@@ -148,8 +153,10 @@ class HTQLSuggestions {
                 break;
             case 'Enter':
             case 'Tab':
-                e.preventDefault();
-                this.applyCurrent();
+                if (this.currentSuggestions.length > 0) {
+                    e.preventDefault();
+                    this.applyCurrent();
+                }
                 break;
             case 'Escape':
                 this.hideSuggestions();

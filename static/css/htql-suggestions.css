@@ -45,6 +45,7 @@
     border-radius: 50% !important;
     z-index: 2 !important;
     display: block !important;
+    transition: background-color 0.2s ease !important;
 }
 
 .input-group .form-control {
