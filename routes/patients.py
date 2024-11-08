@@ -18,6 +18,37 @@ def view_patient(id):
     patient = Patient.query.get_or_404(id)
     return render_template('patients/view.html', patient=patient)
 
+@patients_bp.route('/patients/new', methods=['GET', 'POST'])
+@login_required
+@audit_log(action='create', resource_type='patient')
+def create_patient():
+    if request.method == 'POST':
+        try:
+            patient = Patient(
+                identifier=Patient.generate_identifier(),
+                family_name=request.form.get('family_name'),
+                given_name=request.form.get('given_name'),
+                gender=request.form.get('gender'),
+                birth_date=datetime.strptime(request.form.get('birth_date'), '%Y-%m-%d').date() if request.form.get('birth_date') else None,
+                phone=request.form.get('phone'),
+                email=request.form.get('email'),
+                address_line=request.form.get('address_line'),
+                city=request.form.get('city'),
+                state=request.form.get('state'),
+                postal_code=request.form.get('postal_code'),
+                country=request.form.get('country')
+            )
+            db.session.add(patient)
+            db.session.commit()
+            flash('Patient created successfully', 'success')
+            return redirect(url_for('patients.view_patient', id=patient.id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error creating patient: {str(e)}')
+            flash('An error occurred while creating the patient', 'danger')
+            
+    return render_template('patients/new.html')
+
 @patients_bp.route('/patients/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @audit_log(action='edit', resource_type='patient')
