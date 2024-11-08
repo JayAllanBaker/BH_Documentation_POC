@@ -1,10 +1,8 @@
 from sqlalchemy import or_, and_, not_
 from models import Patient, Document, Condition, ICD10Code
-import re
-import json
-import os
 from functools import lru_cache
 from flask import current_app
+import re
 
 class HTQLParser:
     def __init__(self):
@@ -38,12 +36,10 @@ class HTQLParser:
         }
 
     def tokenize(self, query):
-        """Split query into tokens, preserving quoted strings"""
         pattern = r'(?:[^\s"]+|"[^"]*")+|AND|OR|NOT'
         return [token.strip('"') for token in re.findall(pattern, query)]
 
     def parse_field(self, field_expr):
-        """Parse field expressions like field:value or field.subfield:value"""
         if ':' not in field_expr:
             return None, field_expr
             
@@ -52,7 +48,6 @@ class HTQLParser:
         return field_parts, value.strip('"')
 
     def build_filter(self, query):
-        """Build SQLAlchemy filter from HTQL query"""
         tokens = self.tokenize(query)
         filters = []
         current_operator = 'AND'
@@ -110,9 +105,92 @@ class HTQLParser:
             
         return filters[0] if filters else None
 
+@lru_cache(maxsize=100)
+def get_code_suggestions(prefix, code_type=None):
+    """Get medical code suggestions based on prefix with improved caching"""
+    try:
+        current_app.logger.debug(f'Getting code suggestions for prefix: {prefix}, type: {code_type}')
+        suggestions = []
+        seen_codes = set()
+        
+        # Search the database for ICD-10 codes first with proper error handling
+        if not code_type or code_type.upper() == 'ICD-10':
+            try:
+                db_suggestions = ICD10Code.search_codes(prefix)
+                for code in db_suggestions:
+                    if code.code not in seen_codes:
+                        suggestions.append({
+                            'code': code.code,
+                            'description': code.description,
+                            'system': 'ICD-10',
+                            'category': code.category
+                        })
+                        seen_codes.add(code.code)
+            except Exception as e:
+                current_app.logger.error(f'Error fetching ICD-10 codes: {str(e)}')
+        
+        # Add hardcoded codes if they match the search criteria
+        codes = load_medical_codes()
+        if code_type and code_type.upper() in codes:
+            add_suggestions(code_type.upper(), codes[code_type.upper()], suggestions, seen_codes, prefix)
+        else:
+            for system, system_codes in codes.items():
+                add_suggestions(system, system_codes, suggestions, seen_codes, prefix)
+        
+        # Sort suggestions by relevance and limit results
+        suggestions.sort(key=lambda x: get_sort_key(x, prefix))
+        return suggestions[:10]
+        
+    except Exception as e:
+        current_app.logger.error(f'Error getting code suggestions: {str(e)}')
+        return []
+
+def add_suggestions(code_system, codes_dict, suggestions, seen_codes, prefix):
+    """Helper function to add suggestions with improved matching"""
+    prefix_lower = prefix.lower()
+    
+    for code, desc in codes_dict.items():
+        if code not in seen_codes and (
+            code.lower().startswith(prefix_lower) or 
+            desc.lower().find(prefix_lower) != -1 or
+            (len(prefix) >= 3 and any(
+                term.lower().startswith(prefix_lower) 
+                for term in desc.split()
+            ))
+        ):
+            suggestions.append({
+                'code': code,
+                'description': desc,
+                'system': code_system,
+                'category': code.split('.')[0] if '.' in code else code
+            })
+            seen_codes.add(code)
+
+def get_sort_key(suggestion, prefix):
+    """Enhanced sort key function for better relevance ranking"""
+    code = suggestion['code'].lower()
+    desc = suggestion['description'].lower()
+    prefix_lower = prefix.lower()
+    
+    # Exact code match gets highest priority
+    if code == prefix_lower:
+        return (0, len(code), code)
+    # Code starts with prefix
+    elif code.startswith(prefix_lower):
+        return (1, len(code), code)
+    # Description starts with prefix
+    elif desc.startswith(prefix_lower):
+        return (2, len(desc), code)
+    # Code contains prefix
+    elif code.find(prefix_lower) != -1:
+        return (3, len(code), code)
+    # Description contains prefix
+    else:
+        return (4, len(desc), code)
+
 @lru_cache(maxsize=1)
 def load_medical_codes():
-    """Load ICD-10 and SNOMED CT codes from JSON files"""
+    """Load ICD-10 and SNOMED CT codes from static dictionary"""
     codes = {
         'ICD-10': {
             'E11': 'Type 2 diabetes mellitus',
@@ -125,16 +203,6 @@ def load_medical_codes():
             'E11.31': 'Type 2 diabetes with background retinopathy',
             'E11.32': 'Type 2 diabetes with proliferative retinopathy',
             'E11.4': 'Type 2 diabetes with neurological complications',
-            'E11.40': 'Type 2 diabetes with diabetic neuropathy, unspecified',
-            'E11.41': 'Type 2 diabetes with diabetic mononeuropathy',
-            'E11.42': 'Type 2 diabetes with diabetic polyneuropathy',
-            'E11.43': 'Type 2 diabetes with diabetic autonomic (poly)neuropathy',
-            'E11.5': 'Type 2 diabetes with circulatory complications',
-            'E11.51': 'Type 2 diabetes with diabetic peripheral angiopathy without gangrene',
-            'E11.52': 'Type 2 diabetes with diabetic peripheral angiopathy with gangrene',
-            'E11.6': 'Type 2 diabetes with other specified complications',
-            'E11.8': 'Type 2 diabetes with unspecified complications',
-            'E11.9': 'Type 2 diabetes without complications',
             'I10': 'Essential (primary) hypertension',
             'I11': 'Hypertensive heart disease',
             'I11.0': 'Hypertensive heart disease with heart failure',
@@ -143,24 +211,10 @@ def load_medical_codes():
             'J45.0': 'Predominantly allergic asthma',
             'J45.1': 'Nonallergic asthma',
             'J45.2': 'Mixed asthma',
-            'J45.3': 'Severe persistent asthma',
-            'J45.4': 'Mild intermittent asthma',
-            'J45.5': 'Mild persistent asthma',
-            'J45.9': 'Other and unspecified asthma',
             'F32': 'Major depressive disorder, single episode',
-            'F32.0': 'Major depressive disorder, single episode, mild',
-            'F32.1': 'Major depressive disorder, single episode, moderate',
-            'F32.2': 'Major depressive disorder, single episode, severe without psychotic features',
-            'F32.3': 'Major depressive disorder, single episode, severe with psychotic features',
-            'F32.4': 'Major depressive disorder, single episode, in partial remission',
-            'F32.5': 'Major depressive disorder, single episode, in full remission',
             'F41': 'Other anxiety disorders',
             'F41.0': 'Panic disorder without agoraphobia',
-            'F41.1': 'Generalized anxiety disorder',
-            'F41.2': 'Mixed anxiety and depressive disorder',
-            'F41.3': 'Other mixed anxiety disorders',
-            'F41.8': 'Other specified anxiety disorders',
-            'F41.9': 'Anxiety disorder, unspecified'
+            'F41.1': 'Generalized anxiety disorder'
         },
         'SNOMED-CT': {
             '44054006': 'Type 2 diabetes mellitus (disorder)',
@@ -172,84 +226,10 @@ def load_medical_codes():
             '73211009': 'Diabetes mellitus (disorder)',
             '59621000': 'Essential hypertension (disorder)',
             '35489007': 'Depressive disorder (disorder)',
-            '69479009': 'Allergic asthma (disorder)',
-            '46635009': 'Type 1 diabetes mellitus (disorder)',
-            '422034002': 'Diabetic retinopathy (disorder)',
-            '421920002': 'Diabetic peripheral neuropathy (disorder)',
-            '421893009': 'Diabetic renal disease (disorder)',
-            '197591003': 'Generalized anxiety disorder (disorder)',
-            '191736004': 'Chronic depression (disorder)',
-            '191747006': 'Seasonal affective disorder (disorder)',
-            '191659001': 'Atopic asthma (disorder)',
-            '195977004': 'Asthma with status asthmaticus (disorder)',
-            '195978009': 'Mild asthma (disorder)'
+            '69479009': 'Allergic asthma (disorder)'
         }
     }
     return codes
-
-def get_code_suggestions(prefix, code_type=None):
-    """Get medical code suggestions based on prefix"""
-    try:
-        current_app.logger.debug(f'Getting code suggestions for prefix: {prefix}, type: {code_type}')
-        suggestions = []
-        seen_codes = set()  # Track seen codes to avoid duplicates
-        
-        # Search the database for ICD-10 codes first
-        if not code_type or code_type.upper() == 'ICD-10':
-            db_suggestions = ICD10Code.search_codes(prefix)
-            for code in db_suggestions:
-                if code.code not in seen_codes:
-                    suggestions.append({
-                        'code': code.code,
-                        'description': code.description,
-                        'system': 'ICD-10'
-                    })
-                    seen_codes.add(code.code)
-        
-        # Then add hardcoded codes if they're not already included
-        codes = load_medical_codes()
-        if code_type and code_type.upper() in codes:
-            add_suggestions(code_type.upper(), codes[code_type.upper()], suggestions, seen_codes)
-        else:
-            for system, system_codes in codes.items():
-                add_suggestions(system, system_codes, suggestions, seen_codes)
-        
-        # Sort suggestions by relevance
-        suggestions.sort(key=lambda x: get_sort_key(x, prefix))
-        return suggestions[:10]  # Limit to top 10 suggestions
-        
-    except Exception as e:
-        current_app.logger.error(f'Error getting code suggestions: {str(e)}')
-        return []
-
-def add_suggestions(code_system, codes_dict, suggestions, seen_codes):
-    """Helper function to add suggestions while avoiding duplicates"""
-    for code, desc in codes_dict.items():
-        if code not in seen_codes and (
-            code.lower().startswith(prefix.lower()) or 
-            desc.lower().find(prefix.lower()) != -1
-        ):
-            suggestions.append({
-                'code': code,
-                'description': desc,
-                'system': code_system
-            })
-            seen_codes.add(code)
-
-def get_sort_key(suggestion, prefix):
-    """Get sort key for suggestion relevance"""
-    code = suggestion['code'].lower()
-    desc = suggestion['description'].lower()
-    prefix_lower = prefix.lower()
-    
-    if code == prefix_lower:
-        return (0, code)
-    elif code.startswith(prefix_lower):
-        return (1, code)
-    elif desc.startswith(prefix_lower):
-        return (2, code)
-    else:
-        return (3, code)
 
 def search_patients(query):
     """Search patients using HTQL query"""

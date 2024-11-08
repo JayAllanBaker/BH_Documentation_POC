@@ -1,6 +1,5 @@
 class HTQLSuggestions {
     constructor(input) {
-        // Cache DOM elements
         this.input = input;
         this.validationIndicator = input.parentNode.querySelector('.validation-indicator');
         this.loadingIndicator = document.getElementById('htqlLoadingIndicator');
@@ -127,6 +126,8 @@ class HTQLSuggestions {
                             displayText: `${s.code} - ${s.description}`,
                             details: `(${s.system})`
                         })));
+                    } else {
+                        this.generateFieldSuggestions(inputValue);
                     }
                 } else {
                     this.generateFieldSuggestions(inputValue);
@@ -184,11 +185,15 @@ class HTQLSuggestions {
         
         items.forEach((item, index) => {
             item.classList.toggle('selected', index === this.selectedIndex);
+            if (index === this.selectedIndex) {
+                item.scrollIntoView({ block: 'nearest' });
+            }
         });
     }
 
     updateSuggestions(suggestions) {
         this.currentSuggestions = suggestions;
+        this.selectedIndex = -1;
         if (suggestions.length > 0) {
             this.showSuggestions();
         } else {
@@ -217,6 +222,7 @@ class HTQLSuggestions {
         this.input.focus();
         
         this.hideSuggestions();
+        this.validateSyntax(this.input.value);
     }
 
     showSuggestions() {
@@ -239,6 +245,12 @@ class HTQLSuggestions {
                 const index = parseInt(item.dataset.index);
                 this.selectedIndex = index;
                 this.applyCurrent();
+            });
+            
+            item.addEventListener('mouseenter', () => {
+                const index = parseInt(item.dataset.index);
+                this.selectedIndex = index;
+                this.updateSelection();
             });
         });
 

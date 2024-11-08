@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required
 from models import Patient, PatientIdentifier, db
 from utils.audit import audit_log
+from datetime import datetime
 
 patients_bp = Blueprint('patients', __name__)
 
@@ -16,6 +17,49 @@ def list_patients():
 def view_patient(id):
     patient = Patient.query.get_or_404(id)
     return render_template('patients/view.html', patient=patient)
+
+@patients_bp.route('/patients/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@audit_log(action='edit', resource_type='patient')
+def edit_patient(id):
+    patient = Patient.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        try:
+            # Get original data for audit log
+            request.form = request.form.copy()
+            request.form['original_data'] = {
+                'name': f'{patient.family_name}, {patient.given_name}',
+                'gender': patient.gender,
+                'email': patient.email,
+                'phone': patient.phone,
+                'address': patient.address_line,
+                'city': patient.city,
+                'state': patient.state
+            }
+            
+            # Update patient data
+            patient.family_name = request.form.get('family_name')
+            patient.given_name = request.form.get('given_name')
+            patient.gender = request.form.get('gender')
+            patient.birth_date = datetime.strptime(request.form.get('birth_date'), '%Y-%m-%d').date() if request.form.get('birth_date') else None
+            patient.phone = request.form.get('phone')
+            patient.email = request.form.get('email')
+            patient.address_line = request.form.get('address_line')
+            patient.city = request.form.get('city')
+            patient.state = request.form.get('state')
+            patient.postal_code = request.form.get('postal_code')
+            patient.country = request.form.get('country')
+            
+            db.session.commit()
+            flash('Patient updated successfully', 'success')
+            return redirect(url_for('patients.view_patient', id=id))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error updating patient: {str(e)}')
+            flash('An error occurred while updating the patient', 'danger')
+            
+    return render_template('patients/edit.html', patient=patient)
 
 @patients_bp.route('/patients/<int:id>/identifiers/add', methods=['POST'])
 @login_required
