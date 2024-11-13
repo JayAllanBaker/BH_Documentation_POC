@@ -141,6 +141,102 @@ def edit_patient(id):
             
     return render_template('patients/edit.html', patient=patient)
 
+@patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/edit', methods=['GET', 'POST'])
+@login_required
+@audit_log(action='edit', resource_type='assessment')
+def edit_assessment(patient_id, result_id):
+    patient = Patient.query.get_or_404(patient_id)
+    result = AssessmentResult.query.get_or_404(result_id)
+    
+    if result.patient_id != patient.id:
+        flash('Access denied', 'danger')
+        return redirect(url_for('patients.patient_assessments', patient_id=patient_id))
+        
+    if result.status != 'draft':
+        flash('Cannot edit a completed assessment', 'danger')
+        return redirect(url_for('patients.view_assessment', patient_id=patient_id, result_id=result_id))
+    
+    if request.method == 'POST':
+        try:
+            # Store current responses before clearing
+            current_responses = {
+                resp.question_id: resp.response_value 
+                for resp in result.responses
+            }
+            
+            # Clear existing responses
+            for response in result.responses:
+                db.session.delete(response)
+            
+            # Add new responses
+            has_all_required = True
+            new_responses = []
+            
+            for question in result.tool.questions:
+                response_value = request.form.get(f'response_{question.id}')
+                if question.required and not response_value:
+                    has_all_required = False
+                    # Restore previous responses
+                    for q_id, value in current_responses.items():
+                        resp = AssessmentResponse()
+                        resp.result_id = result.id
+                        resp.question_id = q_id
+                        resp.response_value = value
+                        new_responses.append(resp)
+                    break
+                    
+                if response_value:
+                    resp = AssessmentResponse()
+                    resp.result_id = result.id
+                    resp.question_id = question.id
+                    resp.response_value = response_value
+                    
+                    if question.options:
+                        option = next((opt for opt in question.options if opt['value'] == response_value), None)
+                        if option and 'score' in option:
+                            resp.score = float(option['score'])
+                    
+                    new_responses.append(resp)
+            
+            if not has_all_required:
+                # Rollback and restore previous state
+                db.session.rollback()
+                flash('Please answer all required questions', 'danger')
+                return render_template('patients/assessment_form.html', 
+                                    patient=patient, 
+                                    result=result)
+            
+            # Add all new responses
+            for resp in new_responses:
+                db.session.add(resp)
+            
+            result.clinical_notes = request.form.get('clinical_notes')
+            
+            # Handle action
+            action = request.form.get('action')
+            if action == 'complete':
+                result.status = 'completed'
+                result.total_score = result.calculate_score()
+                flash('Assessment completed', 'success')
+            else:
+                flash('Assessment saved', 'success')
+                
+            db.session.commit()
+            
+            if action == 'complete':
+                return redirect(url_for('patients.view_assessment', 
+                                      patient_id=patient_id, 
+                                      result_id=result_id))
+                                      
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error updating assessment: {str(e)}')
+            flash('An error occurred while updating the assessment', 'danger')
+    
+    return render_template('patients/assessment_form.html', 
+                         patient=patient, 
+                         result=result)
+
 @patients_bp.route('/patients/<int:patient_id>/assessments')
 @login_required
 def patient_assessments(patient_id):
@@ -219,72 +315,6 @@ def view_assessment(patient_id, result_id):
         return redirect(url_for('patients.patient_assessments', patient_id=patient_id))
         
     return render_template('patients/assessment_view.html', patient=patient, result=result)
-
-@patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/edit', methods=['GET', 'POST'])
-@login_required
-@audit_log(action='edit', resource_type='assessment')
-def edit_assessment(patient_id, result_id):
-    patient = Patient.query.get_or_404(patient_id)
-    result = AssessmentResult.query.get_or_404(result_id)
-    
-    if result.patient_id != patient.id:
-        flash('Access denied', 'danger')
-        return redirect(url_for('patients.patient_assessments', patient_id=patient_id))
-        
-    if result.status != 'draft':
-        flash('Cannot edit a completed assessment', 'danger')
-        return redirect(url_for('patients.view_assessment', patient_id=patient_id, result_id=result_id))
-    
-    if request.method == 'POST':
-        try:
-            # Clear existing responses
-            for response in result.responses:
-                db.session.delete(response)
-            
-            # Add new responses
-            for question in result.tool.questions:
-                response_value = request.form.get(f'response_{question.id}')
-                if response_value:
-                    score = None
-                    if question.options:
-                        option = next((opt for opt in question.options if opt['value'] == response_value), None)
-                        if option and 'score' in option:
-                            score = float(option['score'])
-                            
-                    response = AssessmentResponse()
-                    response.result_id = result.id
-                    response.question_id = question.id
-                    response.response_value = response_value
-                    response.score = score
-                    
-                    db.session.add(response)
-            
-            result.clinical_notes = request.form.get('clinical_notes')
-            
-            # Handle action
-            action = request.form.get('action')
-            if action == 'complete':
-                if not result.validate_responses():
-                    flash('Please answer all required questions', 'danger')
-                    db.session.rollback()
-                    return render_template('patients/assessment_form.html', patient=patient, result=result)
-                    
-                result.status = 'completed'
-                result.total_score = result.calculate_score()
-                flash('Assessment completed', 'success')
-            else:
-                flash('Assessment saved', 'success')
-                
-            db.session.commit()
-            
-            if action == 'complete':
-                return redirect(url_for('patients.view_assessment', patient_id=patient_id, result_id=result_id))
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f'Error updating assessment: {str(e)}')
-            flash('An error occurred while updating the assessment', 'danger')
-    
-    return render_template('patients/assessment_form.html', patient=patient, result=result)
 
 @patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/delete', methods=['POST'])
 @login_required
