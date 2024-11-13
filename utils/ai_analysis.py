@@ -2,54 +2,97 @@ import os
 import openai
 import json
 import logging
-from typing import Dict
+from typing import Dict, Any
+import docx
+import wave
+import contextlib
+import speech_recognition as sr
+from pydub import AudioSegment
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def analyze_transcription(transcription: str) -> Dict:
-    """
-    Analyze medical transcription using OpenAI GPT to categorize content according to MEAT/TAMPER standards.
-    """
-    client = openai.OpenAI()
+def extract_text_from_document(file_path: str) -> str:
+    """Extract text content from various document formats"""
+    file_ext = os.path.splitext(file_path)[1].lower()
     
-    system_prompt = '''You are a medical documentation analyst specializing in MEAT and TAMPER standards. For each section:
+    if file_ext in ['.wav', '.mp3']:
+        return extract_text_from_audio(file_path)
+    elif file_ext == '.docx':
+        return extract_text_from_docx(file_path)
+    elif file_ext == '.txt':
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    elif file_ext == '.pdf':
+        # For now, return empty string for PDF
+        # TODO: Implement PDF text extraction
+        return ""
+    return ""
 
-MEAT:
-- Monitor: Extract information about vital signs, symptoms, or ongoing condition monitoring (e.g., "PHQ9 score of 8.2, vital signs stable")
-- Evaluate: Extract information about tests, examinations, or assessments performed (e.g., "Physical examination completed, PHQ9 assessment conducted")
-- Assess: Extract information about diagnoses, interpretations of symptoms/tests (e.g., "Patient diagnosed with schizophrenia and mild depression")
-- Treat: Extract information about medications, procedures, or treatment plans (e.g., "Prescribed Xanax for symptom management")
-
-TAMPER:
-- Time: Extract information about visit duration, time stamps, or scheduling (e.g., "Follow-up scheduled in seven days")
-- Action: Extract information about what was done during the visit (e.g., "Conducted mental health assessment and medication review")
-- Medical Necessity: Extract information justifying medical decisions (e.g., "Treatment required due to severe symptoms affecting daily functioning")
-- Plan: Extract information about future treatment plans or follow-ups (e.g., "Will reassess medication efficacy in seven days")
-- Education: Extract information about patient education or instructions (e.g., "Discussed medication side effects and coping strategies")
-- Response: Extract information about patient's response to treatment (e.g., "Patient reports improved sleep with current medication")
-
-Analyze the transcription and provide clear, concise text strings for each category.'''
-    
-    user_prompt = f"""Please analyze this medical transcription and categorize the content according to MEAT and TAMPER standards:
-
-Transcription: {transcription}
-
-For each category, provide only the relevant extracted information as a simple text string. Do not include any JSON structure in the extracted content. Format your response as JSON with these keys, where each value is a plain string:
-- meat_monitor: a string containing vital signs, symptoms, or ongoing condition monitoring
-- meat_evaluate: a string containing tests, examinations, or assessments performed
-- meat_assess: a string containing diagnoses and interpretations
-- meat_treat: a string containing medications, procedures, or treatment plans
-- tamper_time: a string containing visit duration and scheduling info
-- tamper_action: a string containing what was done during the visit
-- tamper_medical_necessity: a string containing justification for medical decisions
-- tamper_plan: a string containing future treatment plans
-- tamper_education: a string containing patient education details
-- tamper_response: a string containing patient's response to treatment"""
-
+def extract_text_from_docx(file_path: str) -> str:
+    """Extract text from DOCX file"""
     try:
-        logger.info("Sending request to OpenAI API")
+        doc = docx.Document(file_path)
+        return "\n".join([paragraph.text for paragraph in doc.paragraphs])
+    except Exception as e:
+        logger.error(f"Error extracting text from DOCX: {str(e)}")
+        return ""
+
+def extract_text_from_audio(file_path: str) -> str:
+    """Extract text from audio file using speech recognition"""
+    try:
+        # Convert MP3 to WAV if needed
+        if file_path.lower().endswith('.mp3'):
+            audio = AudioSegment.from_mp3(file_path)
+            wav_path = file_path.rsplit('.', 1)[0] + '.wav'
+            audio.export(wav_path, format='wav')
+            file_path = wav_path
+
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(file_path) as source:
+            audio = recognizer.record(source)
+            return recognizer.recognize_google(audio)
+    except Exception as e:
+        logger.error(f"Error extracting text from audio: {str(e)}")
+        return ""
+
+def extract_assessment_data(file_path: str, assessment_tool: Any) -> Dict[int, str]:
+    """
+    Extract assessment data from document and map to assessment tool questions
+    Returns a dictionary mapping question IDs to response values
+    """
+    try:
+        # Extract text content from document
+        text_content = extract_text_from_document(file_path)
+        if not text_content:
+            logger.error("No text content extracted from document")
+            return {}
+
+        # Prepare the prompt for analysis
+        questions_prompt = "\n".join([
+            f"Q{q.id}: {q.question_text}" 
+            for q in assessment_tool.questions
+        ])
+
+        system_prompt = """You are a medical assessment analyzer. Given a medical document and a set of assessment questions:
+1. Analyze the text for relevant information
+2. Map the information to the specific assessment questions
+3. For each question, provide the most appropriate response value based on the content
+4. If a question cannot be answered from the content, skip it"""
+
+        user_prompt = f"""Please analyze this medical document and provide responses for the following assessment questions:
+
+Document Content:
+{text_content}
+
+Assessment Questions:
+{questions_prompt}
+
+For each question, provide only the response value that best matches the options available for that question. Format your response as a JSON object where keys are question IDs (Q1, Q2, etc.) and values are the response values."""
+
+        # Get AI analysis
+        client = openai.OpenAI()
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -59,34 +102,23 @@ For each category, provide only the relevant extracted information as a simple t
             response_format={ "type": "json_object" },
             temperature=0.3
         )
-        
-        logger.info("Received response from OpenAI")
+
+        # Process the response
         content = response.choices[0].message.content
         if isinstance(content, str):
             try:
                 result = json.loads(content)
-                logger.info("Successfully parsed OpenAI response")
-                # Ensure all required fields exist and are strings
-                required_fields = [
-                    'meat_monitor', 'meat_evaluate', 'meat_assess', 'meat_treat',
-                    'tamper_time', 'tamper_action', 'tamper_medical_necessity',
-                    'tamper_plan', 'tamper_education', 'tamper_response'
-                ]
-                for field in required_fields:
-                    if field not in result:
-                        result[field] = ''
-                    elif not isinstance(result[field], str):
-                        result[field] = str(result[field])
-                return result
+                # Convert response to proper format
+                formatted_result = {}
+                for q_id, value in result.items():
+                    if q_id.startswith('Q'):
+                        question_id = int(q_id[1:])  # Remove 'Q' prefix
+                        formatted_result[question_id] = value
+                return formatted_result
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse OpenAI response: {e}")
-                return {field: '' for field in required_fields}
-        return content
+                return {}
+        return {}
     except Exception as e:
-        logger.error(f"Error in AI analysis: {str(e)}")
-        required_fields = [
-            'meat_monitor', 'meat_evaluate', 'meat_assess', 'meat_treat',
-            'tamper_time', 'tamper_action', 'tamper_medical_necessity',
-            'tamper_plan', 'tamper_education', 'tamper_response'
-        ]
-        return {field: '' for field in required_fields}
+        logger.error(f"Error in assessment data extraction: {str(e)}")
+        return {}

@@ -15,7 +15,58 @@
                     <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
                 </div>
                 <div class="card-body">
-                    <form method="POST" id="assessmentForm">
+                    <!-- Entry Mode Toggle -->
+                    <div class="btn-group mb-4 w-100" role="group">
+                        <input type="radio" class="btn-check" name="entry_mode" id="manual_mode" value="manual" 
+                               autocomplete="off" {% if result.entry_mode != 'document' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="manual_mode">Manual Entry</label>
+
+                        <input type="radio" class="btn-check" name="entry_mode" id="document_mode" value="document" 
+                               autocomplete="off" {% if result.entry_mode == 'document' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="document_mode">Document Upload</label>
+                    </div>
+
+                    <!-- Document Upload Section -->
+                    <div id="documentSection" class="mb-4 {% if result.entry_mode != 'document' %}d-none{% endif %}">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Upload Document</h5>
+                                <form id="documentUploadForm" enctype="multipart/form-data" class="mb-3">
+                                    <div class="mb-3">
+                                        <label for="document" class="form-label">Choose Document</label>
+                                        <input type="file" class="form-control" id="document" name="document" 
+                                               accept=".txt,.doc,.docx,.pdf,.wav,.mp3">
+                                        <div class="form-text">
+                                            Supported formats: TXT, DOC, DOCX, PDF, WAV, MP3
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Upload & Process</button>
+                                </form>
+                                
+                                <!-- Upload Progress -->
+                                <div id="uploadProgress" class="progress d-none">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%"></div>
+                                </div>
+
+                                <!-- Processing Status -->
+                                <div id="processingStatus" class="alert alert-info d-none">
+                                    Processing document...
+                                </div>
+
+                                {% if result.document %}
+                                <div class="alert alert-success">
+                                    <strong>Document processed:</strong> {{ result.document.title }}
+                                    <button type="button" class="btn-close float-end" 
+                                            onclick="removeDocument()"></button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Entry Form -->
+                    <form method="POST" id="assessmentForm" class="{% if result.entry_mode == 'document' %}d-none{% endif %}">
                         {% for question in result.tool.questions|sort(attribute='order') %}
                         <div class="mb-4">
                             <label class="form-label {% if question.required %}required-field{% endif %}">
@@ -92,4 +143,93 @@
     font-weight: bold;
 }
 </style>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const entryModeInputs = document.querySelectorAll('input[name="entry_mode"]');
+    const documentSection = document.getElementById('documentSection');
+    const assessmentForm = document.getElementById('assessmentForm');
+    const documentUploadForm = document.getElementById('documentUploadForm');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const processingStatus = document.getElementById('processingStatus');
+
+    // Handle entry mode toggle
+    entryModeInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (this.value === 'document') {
+                documentSection.classList.remove('d-none');
+                assessmentForm.classList.add('d-none');
+            } else {
+                documentSection.classList.add('d-none');
+                assessmentForm.classList.remove('d-none');
+            }
+        });
+    });
+
+    // Handle document upload
+    documentUploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const fileInput = this.querySelector('input[type="file"]');
+        
+        if (!fileInput.files.length) {
+            alert('Please select a file to upload');
+            return;
+        }
+
+        try {
+            // Show progress
+            uploadProgress.classList.remove('d-none');
+            const progressBar = uploadProgress.querySelector('.progress-bar');
+            progressBar.style.width = '0%';
+
+            // Upload file
+            const response = await fetch(`/patients/{{ patient.id }}/assessments/{{ result.id }}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+
+            // Show processing status
+            uploadProgress.classList.add('d-none');
+            processingStatus.classList.remove('d-none');
+
+            const result = await response.json();
+            if (result.success) {
+                window.location.reload();
+            } else {
+                alert(result.error || 'An error occurred during processing');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('An error occurred during upload');
+        } finally {
+            uploadProgress.classList.add('d-none');
+            processingStatus.classList.add('d-none');
+        }
+    });
+});
+
+function removeDocument() {
+    if (confirm('Are you sure you want to remove the document and return to manual entry?')) {
+        fetch(`/patients/{{ patient.id }}/assessments/{{ result.id }}/remove-document`, {
+            method: 'POST'
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to remove document');
+            }
+        });
+    }
+}
+</script>
 {% endblock %}

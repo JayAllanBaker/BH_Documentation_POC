@@ -231,19 +231,23 @@ class AssessmentResult(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
     tool_id = db.Column(db.Integer, db.ForeignKey('assessment_tool.id'), nullable=False)
     assessor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=True)
     total_score = db.Column(db.Float)
     assessment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     clinical_notes = db.Column(db.Text)
     status = db.Column(db.String(20), nullable=False, default='draft')  # draft, completed, invalid
+    entry_mode = db.Column(db.String(20), nullable=False, default='manual')  # manual, document
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     responses = db.relationship('AssessmentResponse', backref='result', lazy=True, cascade='all, delete-orphan')
     assessor = db.relationship('User', backref='assessment_results')
+    document = db.relationship('Document', backref='assessment_results')
 
     __table_args__ = (
         db.Index('idx_assessment_result_patient', 'patient_id'),
         db.Index('idx_assessment_result_tool', 'tool_id'),
         db.Index('idx_assessment_result_date', 'assessment_date'),
+        db.Index('idx_assessment_result_document', 'document_id'),
     )
 
     def calculate_score(self):

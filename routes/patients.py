@@ -1,8 +1,11 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, jsonify
 from flask_login import login_required, current_user
-from models import Patient, PatientIdentifier, AssessmentTool, AssessmentResult, AssessmentResponse, db
+from models import Patient, PatientIdentifier, AssessmentTool, AssessmentResult, AssessmentResponse, Document, db
 from utils.audit import audit_log
 from datetime import datetime
+from werkzeug.utils import secure_filename
+import os
+from utils.ai_analysis import extract_assessment_data
 
 patients_bp = Blueprint('patients', __name__)
 
@@ -298,3 +301,112 @@ def delete_assessment(patient_id, result_id):
         flash('An error occurred while deleting the assessment', 'danger')
         
     return redirect(url_for('patients.list_assessments', id=patient_id))
+
+@patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/upload', methods=['POST'])
+@login_required
+@audit_log(action='upload', resource_type='assessment_document')
+def upload_assessment_document(patient_id, result_id):
+    patient = Patient.query.get_or_404(patient_id)
+    result = AssessmentResult.query.get_or_404(result_id)
+    
+    if result.patient_id != patient.id:
+        return jsonify({'error': 'Access denied'}), 403
+        
+    if result.status != 'draft':
+        return jsonify({'error': 'Cannot modify a completed assessment'}), 400
+    
+    if 'document' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+        
+    file = request.files['document']
+    if not file.filename:
+        return jsonify({'error': 'No file selected'}), 400
+        
+    try:
+        # Save the document
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        # Create document record
+        document = Document(
+            title=f"Assessment Document - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            content="Uploaded for assessment",
+            user_id=current_user.id,
+            patient_id=patient.id
+        )
+        
+        if file_path.lower().endswith(('.wav', '.mp3')):
+            document.audio_file = filename
+        else:
+            with open(file_path, 'r') as f:
+                document.content = f.read()
+        
+        db.session.add(document)
+        db.session.flush()  # Get document ID
+        
+        # Process document content
+        extracted_data = extract_assessment_data(file_path, result.tool)
+        
+        # Update assessment
+        result.document_id = document.id
+        result.entry_mode = 'document'
+        
+        # Clear existing responses
+        for response in result.responses:
+            db.session.delete(response)
+            
+        # Create new responses from extracted data
+        for question_id, value in extracted_data.items():
+            question = next((q for q in result.tool.questions if q.id == question_id), None)
+            if question and value:
+                score = None
+                if question.options:
+                    option = next((opt for opt in question.options if opt['value'] == str(value)), None)
+                    if option and 'score' in option:
+                        score = float(option['score'])
+                        
+                response = AssessmentResponse(
+                    result_id=result.id,
+                    question_id=question_id,
+                    response_value=str(value),
+                    score=score
+                )
+                db.session.add(response)
+        
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error processing document: {str(e)}')
+        return jsonify({'error': 'Error processing document'}), 500
+
+@patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/remove-document', methods=['POST'])
+@login_required
+@audit_log(action='remove', resource_type='assessment_document')
+def remove_assessment_document(patient_id, result_id):
+    patient = Patient.query.get_or_404(patient_id)
+    result = AssessmentResult.query.get_or_404(result_id)
+    
+    if result.patient_id != patient.id:
+        return jsonify({'error': 'Access denied'}), 403
+        
+    if result.status != 'draft':
+        return jsonify({'error': 'Cannot modify a completed assessment'}), 400
+        
+    try:
+        # Clear document reference and responses
+        result.document_id = None
+        result.entry_mode = 'manual'
+        
+        for response in result.responses:
+            db.session.delete(response)
+            
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error removing document: {str(e)}')
+        return jsonify({'error': 'Error removing document'}), 500
