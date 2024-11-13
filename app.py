@@ -21,6 +21,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['DEBUG'] = True  # Enable debug mode
 
+# Configure uploads
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 # Configure database
 try:
     database_url = os.environ.get('DATABASE_URL')
