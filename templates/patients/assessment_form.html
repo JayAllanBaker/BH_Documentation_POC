@@ -16,46 +16,55 @@
                 </div>
                 <div class="card-body">
                     <!-- Entry Mode Toggle -->
-                    <div class="btn-group mb-4 w-100" role="group">
-                        <input type="radio" class="btn-check" name="entry_mode" id="manual_mode" value="manual" 
-                               autocomplete="off" {% if result.entry_mode != 'document' %}checked{% endif %}>
-                        <label class="btn btn-outline-primary" for="manual_mode">Manual Entry</label>
+                    <div class="form-group mb-4">
+                        <label class="form-label d-block">Assessment Entry Mode</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="entry_mode" id="manual_mode" value="manual" 
+                                   autocomplete="off" {% if result.entry_mode != 'document' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="manual_mode">
+                                <i class="fas fa-keyboard me-2"></i>Manual Entry
+                            </label>
 
-                        <input type="radio" class="btn-check" name="entry_mode" id="document_mode" value="document" 
-                               autocomplete="off" {% if result.entry_mode == 'document' %}checked{% endif %}>
-                        <label class="btn btn-outline-primary" for="document_mode">Document Upload</label>
+                            <input type="radio" class="btn-check" name="entry_mode" id="document_mode" value="document" 
+                                   autocomplete="off" {% if result.entry_mode == 'document' %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="document_mode">
+                                <i class="fas fa-file-upload me-2"></i>Document Upload
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Document Upload Section -->
-                    <div id="documentSection" class="mb-4">
+                    <div id="documentSection" class="mb-4" style="display: none;">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title">Upload Document</h5>
-                                <form id="documentUploadForm" enctype="multipart/form-data" class="mb-3">
+                                <h5 class="card-title">Upload Assessment Document</h5>
+                                <form id="documentUploadForm" enctype="multipart/form-data">
                                     <div class="mb-3">
-                                        <label for="document" class="form-label">Choose Document</label>
+                                        <label for="document" class="form-label">Choose Document or Audio File</label>
                                         <input type="file" class="form-control" id="document" name="document" 
                                                accept=".txt,.doc,.docx,.pdf,.wav,.mp3">
                                         <div class="form-text">
-                                            Supported formats: TXT, DOC, DOCX, PDF, WAV, MP3
+                                            Supported formats: Text documents (TXT, DOC, DOCX, PDF) or audio files (WAV, MP3)
                                         </div>
                                     </div>
-                                    <button type="submit" class="btn btn-primary">Upload & Process</button>
+                                    <div class="mb-3">
+                                        <div class="progress d-none">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                 role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-upload me-2"></i>Upload & Process
+                                    </button>
                                 </form>
-                                
-                                <!-- Upload Progress -->
-                                <div id="uploadProgress" class="progress d-none mb-3">
-                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                         role="progressbar" style="width: 0%"></div>
-                                </div>
 
                                 <!-- Processing Status -->
-                                <div id="processingStatus" class="alert alert-info d-none">
+                                <div id="processingStatus" class="alert alert-info d-none mt-3">
                                     Processing document...
                                 </div>
 
                                 {% if result.document %}
-                                <div class="alert alert-success">
+                                <div class="alert alert-success mt-3">
                                     <strong>Document processed:</strong> {{ result.document.title }}
                                     <button type="button" class="btn-close float-end" 
                                             onclick="removeDocument()"></button>
@@ -144,13 +153,26 @@
 }
 
 .btn-group[role="group"] {
-    display: flex;
+    display: flex !important;
     width: 100%;
     margin-bottom: 1rem;
 }
 
 .btn-group[role="group"] .btn {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+#documentSection {
+    transition: display 0.3s ease-in-out;
+}
+
+.progress {
+    height: 0.5rem;
+    margin-top: 0.5rem;
 }
 </style>
 
@@ -164,37 +186,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const documentSection = document.getElementById('documentSection');
     const assessmentForm = document.getElementById('assessmentForm');
     const documentUploadForm = document.getElementById('documentUploadForm');
-    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadProgress = documentUploadForm.querySelector('.progress');
     const processingStatus = document.getElementById('processingStatus');
 
-    // Initialize entry mode toggle display
-    const entryModeToggle = document.querySelector('.btn-group[role="group"]');
-    if (entryModeToggle) {
-        entryModeToggle.style.display = 'flex';
-    }
-
-    // Initialize document section visibility
-    if (documentSection) {
-        documentSection.style.display = '{{ result.entry_mode }}' === 'document' ? 'block' : 'none';
-    }
-
     function updateFormVisibility(mode) {
-        const documentSection = document.getElementById('documentSection');
-        const manualForm = document.getElementById('assessmentForm');
-        
-        if (documentSection && manualForm) {
+        if (documentSection && assessmentForm) {
             documentSection.style.display = mode === 'document' ? 'block' : 'none';
-            manualForm.style.display = mode === 'manual' ? 'block' : 'none';
+            assessmentForm.style.display = mode === 'manual' ? 'block' : 'none';
         }
     }
 
+    // Initialize visibility based on current mode
+    const currentMode = document.querySelector('input[name="entry_mode"]:checked')?.value || 'manual';
+    updateFormVisibility(currentMode);
+
     // Add event listeners for radio buttons
-    document.querySelectorAll('input[name="entry_mode"]').forEach(input => {
+    entryModeInputs.forEach(input => {
         input.addEventListener('change', (e) => updateFormVisibility(e.target.value));
     });
-
-    // Initialize visibility based on current mode
-    updateFormVisibility(document.querySelector('input[name="entry_mode"]:checked')?.value || 'manual');
 
     // Handle document upload
     documentUploadForm.addEventListener('submit', async function(e) {
