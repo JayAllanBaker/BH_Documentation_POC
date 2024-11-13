@@ -42,12 +42,12 @@
                 <div class="card-body">
                     <div class="dropdown d-inline-block me-2">
                         <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            New Assessment
+                            <i class="bi bi-plus-circle"></i> New Assessment
                         </button>
                         <ul class="dropdown-menu">
                             {% for tool in assessment_tools %}
                             <li>
-                                <form action="{{ url_for('patients.create_assessment', patient_id=0) }}" method="POST" class="d-inline">
+                                <form action="{{ url_for('patients.select_patient_for_assessment') }}" method="GET" class="d-inline">
                                     <input type="hidden" name="tool_id" value="{{ tool.id }}">
                                     <button type="submit" class="dropdown-item">{{ tool.name }}</button>
                                 </form>
@@ -55,8 +55,12 @@
                             {% endfor %}
                         </ul>
                     </div>
-                    <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary me-2">View All Patients</a>
-                    <a href="{{ url_for('patients.all_assessments') }}" class="btn btn-info">View All Assessments</a>
+                    <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary me-2">
+                        <i class="bi bi-people"></i> View All Patients
+                    </a>
+                    <a href="{{ url_for('patients.all_assessments') }}" class="btn btn-info">
+                        <i class="bi bi-clipboard2-data"></i> View All Assessments
+                    </a>
                 </div>
             </div>
         </div>
@@ -141,7 +145,7 @@
                         <div class="d-flex justify-content-between">
                             <small>ID: {{ patient.identifier }}</small>
                             {% if patient.assessment_results %}
-                            <small>
+                            <small class="text-muted">
                                 Latest Assessment: {{ patient.assessment_results|sort(attribute='assessment_date')|last.assessment_date.strftime('%Y-%m-%d') }}
                             </small>
                             {% endif %}

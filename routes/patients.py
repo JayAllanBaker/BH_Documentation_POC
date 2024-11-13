@@ -15,6 +15,57 @@ def list_patients():
     patients = Patient.query.filter_by(active=True).order_by(Patient.family_name).all()
     return render_template('patients/list.html', patients=patients)
 
+@patients_bp.route('/assessments/create', methods=['POST'])
+@login_required
+@audit_log(action='create', resource_type='assessment')
+def create_assessment():
+    tool_id = request.form.get('tool_id')
+    patient_id = request.form.get('patient_id')
+    
+    if not tool_id:
+        flash('Assessment tool not specified', 'danger')
+        return redirect(url_for('patients.all_assessments'))
+    
+    if not patient_id:
+        # Redirect to patient selection page
+        return redirect(url_for('patients.select_patient_for_assessment', tool_id=tool_id))
+    
+    patient = Patient.query.get_or_404(patient_id)
+    tool = AssessmentTool.query.get_or_404(tool_id)
+    
+    try:
+        result = AssessmentResult()
+        result.patient_id = patient.id
+        result.tool_id = tool.id
+        result.assessor_id = current_user.id
+        result.status = 'draft'
+        result.assessment_date = datetime.utcnow()
+        
+        db.session.add(result)
+        db.session.commit()
+        flash('Assessment started', 'success')
+        return redirect(url_for('patients.edit_assessment', patient_id=patient.id, result_id=result.id))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error creating assessment: {str(e)}')
+        flash('An error occurred while creating the assessment', 'danger')
+        return redirect(url_for('patients.all_assessments'))
+
+@patients_bp.route('/assessments/select-patient')
+@login_required
+def select_patient_for_assessment():
+    tool_id = request.args.get('tool_id')
+    if not tool_id:
+        flash('Assessment tool not specified', 'danger')
+        return redirect(url_for('patients.all_assessments'))
+        
+    patients = Patient.query.filter_by(active=True).order_by(Patient.family_name).all()
+    tool = AssessmentTool.query.get_or_404(tool_id)
+    
+    return render_template('patients/select_patient.html', 
+                         patients=patients, 
+                         tool=tool)
+
 @patients_bp.route('/patients/<int:id>')
 @login_required
 def view_patient(id):
@@ -156,31 +207,6 @@ def all_assessments():
     return render_template('patients/assessment_list.html',
                          assessments=assessments,
                          assessment_tools=assessment_tools)
-
-@patients_bp.route('/patients/<int:patient_id>/assessments/create', methods=['POST'])
-@login_required
-@audit_log(action='create', resource_type='assessment')
-def create_assessment(patient_id):
-    patient = Patient.query.get_or_404(patient_id)
-    tool_id = request.form.get('tool_id')
-    tool = AssessmentTool.query.get_or_404(tool_id)
-    
-    try:
-        result = AssessmentResult()
-        result.patient_id = patient.id
-        result.tool_id = tool.id
-        result.assessor_id = current_user.id
-        result.status = 'draft'
-        
-        db.session.add(result)
-        db.session.commit()
-        flash('Assessment started', 'success')
-        return redirect(url_for('patients.edit_assessment', patient_id=patient.id, result_id=result.id))
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Error creating assessment: {str(e)}')
-        flash('An error occurred while creating the assessment', 'danger')
-        return redirect(url_for('patients.patient_assessments', patient_id=patient.id))
 
 @patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>')
 @login_required
@@ -331,43 +357,40 @@ def upload_assessment_document(patient_id, result_id):
         # Process document content
         extracted_data = extract_assessment_data(file_path, result.tool)
         
-        # Update assessment
+        # Update assessment responses from extracted data
+        for question_id, response_value in extracted_data.items():
+            response = AssessmentResponse()
+            response.result_id = result.id
+            response.question_id = question_id
+            response.response_value = response_value
+            
+            # Calculate score if applicable
+            question = next((q for q in result.tool.questions if q.id == question_id), None)
+            if question and question.options:
+                option = next((opt for opt in question.options if opt['value'] == response_value), None)
+                if option and 'score' in option:
+                    response.score = float(option['score'])
+            
+            db.session.add(response)
+        
         result.document_id = document.id
         result.entry_mode = 'document'
-        
-        # Clear existing responses
-        for response in result.responses:
-            db.session.delete(response)
-            
-        # Create new responses from extracted data
-        for question_id, value in extracted_data.items():
-            question = next((q for q in result.tool.questions if q.id == question_id), None)
-            if question and value:
-                score = None
-                if question.options:
-                    option = next((opt for opt in question.options if opt['value'] == str(value)), None)
-                    if option and 'score' in option:
-                        score = float(option['score'])
-                        
-                response = AssessmentResponse()
-                response.result_id = result.id
-                response.question_id = question_id
-                response.response_value = str(value)
-                response.score = score
-                
-                db.session.add(response)
-        
         db.session.commit()
-        return jsonify({'success': True})
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document processed successfully'
+        })
         
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'Error processing document: {str(e)}')
-        return jsonify({'error': 'Error processing document'}), 500
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({'error': str(e)}), 500
 
 @patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/remove-document', methods=['POST'])
 @login_required
-@audit_log(action='remove', resource_type='assessment_document')
 def remove_assessment_document(patient_id, result_id):
     patient = Patient.query.get_or_404(patient_id)
     result = AssessmentResult.query.get_or_404(result_id)
@@ -380,13 +403,25 @@ def remove_assessment_document(patient_id, result_id):
     
     try:
         if result.document:
-            document = result.document
-            result.document_id = None
-            result.entry_mode = 'manual'
-            db.session.delete(document)
-            db.session.commit()
-            return jsonify({'success': True})
+            # Remove the file if it exists
+            if result.document.audio_file:
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], result.document.audio_file)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            
+            # Delete the document
+            db.session.delete(result.document)
+        
+        # Clear responses and reset entry mode
+        for response in result.responses:
+            db.session.delete(response)
+            
+        result.document_id = None
+        result.entry_mode = 'manual'
+        db.session.commit()
+        
+        return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'Error removing document: {str(e)}')
-        return jsonify({'error': 'Error removing document'}), 500
+        return jsonify({'error': str(e)}), 500
