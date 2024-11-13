@@ -1,48 +1,156 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Dashboard</h1>
+<div class="container">
+    <h1>Dashboard</h1>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Documents</h5>
-                <a href="{{ url_for('documents.list_documents') }}" class="btn btn-sm btn-primary">View All</a>
+    <!-- Assessment Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Assessments</h5>
+                    <h2 class="mb-0">{{ total_assessments }}</h2>
+                </div>
             </div>
-            <div class="list-group list-group-flush">
-                {% for document in documents %}
-                <a href="{{ url_for('documents.view_document', id=document.id) }}" class="list-group-item list-group-item-action">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">{{ document.title }}</h6>
-                        <small>{{ document.updated_at.strftime('%Y-%m-%d') }}</small>
-                    </div>
-                </a>
-                {% else %}
-                <div class="list-group-item">No documents yet</div>
-                {% endfor %}
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Monthly Assessments</h5>
+                    <h2 class="mb-0">{{ monthly_assessments }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Draft Assessments</h5>
+                    <h2 class="mb-0">{{ draft_assessments }}</h2>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Patients</h5>
-                <a href="{{ url_for('patients.list_patients') }}" class="btn btn-sm btn-primary">View All</a>
-            </div>
-            <div class="list-group list-group-flush">
-                {% for patient in patients %}
-                <a href="{{ url_for('patients.view_patient', id=patient.id) }}" class="list-group-item list-group-item-action">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
-                        <small>{{ patient.updated_at.strftime('%Y-%m-%d') }}</small>
+
+    <!-- Quick Access Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="dropdown d-inline-block me-2">
+                        <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            New Assessment
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% for tool in assessment_tools %}
+                            <li>
+                                <form action="{{ url_for('patients.create_assessment', patient_id=0) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                    <button type="submit" class="dropdown-item">{{ tool.name }}</button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </div>
-                    <small>ID: {{ patient.identifier }}</small>
-                </a>
-                {% else %}
-                <div class="list-group-item">No patients yet</div>
-                {% endfor %}
+                    <a href="{{ url_for('patients.list_patients') }}" class="btn btn-secondary me-2">View All Patients</a>
+                    <a href="{{ url_for('patients.all_assessments') }}" class="btn btn-info">View All Assessments</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Assessments -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Assessments</h5>
+                    <a href="{{ url_for('patients.all_assessments') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for assessment in recent_assessments %}
+                    <a href="{{ url_for('patients.view_assessment', patient_id=assessment.patient_id, result_id=assessment.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                {{ assessment.tool.name }} - 
+                                {{ assessment.patient.family_name }}, {{ assessment.patient.given_name }}
+                            </h6>
+                            <small>{{ assessment.assessment_date.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Score: {{ "%.1f"|format(assessment.total_score) if assessment.total_score else 'N/A' }}</small>
+                            <span class="badge {% if assessment.status == 'completed' %}bg-success{% elif assessment.status == 'draft' %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ assessment.status|title }}
+                            </span>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="list-group-item">No assessments yet</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Documents -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Documents</h5>
+                    <a href="{{ url_for('documents.list_documents') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for document in documents %}
+                    <a href="{{ url_for('documents.view_document', id=document.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ document.title }}</h6>
+                            <small>{{ document.updated_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        {% if document.patient %}
+                        <small class="text-muted">
+                            Patient: {{ document.patient.family_name }}, {{ document.patient.given_name }}
+                        </small>
+                        {% endif %}
+                    </a>
+                    {% else %}
+                    <div class="list-group-item">No documents yet</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Patients -->
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Patients</h5>
+                    <a href="{{ url_for('patients.list_patients') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for patient in patients %}
+                    <a href="{{ url_for('patients.view_patient', id=patient.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ patient.family_name }}, {{ patient.given_name }}</h6>
+                            <small>{{ patient.updated_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small>ID: {{ patient.identifier }}</small>
+                            {% if patient.assessment_results %}
+                            <small>
+                                Latest Assessment: {{ patient.assessment_results|sort(attribute='assessment_date')|last.assessment_date.strftime('%Y-%m-%d') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="list-group-item">No patients yet</div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>

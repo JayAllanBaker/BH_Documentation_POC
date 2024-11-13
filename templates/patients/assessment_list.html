@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Assessments</h2>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        New Assessment
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for tool in assessment_tools %}
+                        <li>
+                            <form action="{{ url_for('patients.create_assessment', patient_id=0) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="tool_id" value="{{ tool.id }}">
+                                <button type="submit" class="dropdown-item">{{ tool.name }}</button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Filter Form -->
+            <form method="GET" class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="patient" class="form-label">Patient</label>
+                        <input type="text" class="form-control" id="patient" name="patient" 
+                               value="{{ request.args.get('patient', '') }}" placeholder="Search by name">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tool" class="form-label">Assessment Type</label>
+                        <select class="form-select" id="tool" name="tool">
+                            <option value="">All Types</option>
+                            {% for tool in assessment_tools %}
+                            <option value="{{ tool.id }}" {% if request.args.get('tool')|int == tool.id %}selected{% endif %}>
+                                {{ tool.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Status</option>
+                            <option value="draft" {% if request.args.get('status') == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_from" class="form-label">Date From</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" 
+                               value="{{ request.args.get('date_from', '') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_to" class="form-label">Date To</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" 
+                               value="{{ request.args.get('date_to', '') }}">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="{{ url_for('patients.list_assessments') }}" class="btn btn-secondary">Clear Filters</a>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Sort Controls -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <span class="me-2">Sort by:</span>
+                    <div class="btn-group">
+                        <a href="{{ url_for('patients.list_assessments', **request.args, sort='date', order='desc' if request.args.get('order') != 'desc' else 'asc') }}" 
+                           class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'date' %}active{% endif %}">
+                            Date
+                            {% if request.args.get('sort') == 'date' %}
+                            <i class="bi bi-arrow-{{ 'down' if request.args.get('order') == 'desc' else 'up' }}"></i>
+                            {% endif %}
+                        </a>
+                        <a href="{{ url_for('patients.list_assessments', **request.args, sort='patient', order='desc' if request.args.get('order') != 'desc' else 'asc') }}"
+                           class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'patient' %}active{% endif %}">
+                            Patient
+                            {% if request.args.get('sort') == 'patient' %}
+                            <i class="bi bi-arrow-{{ 'down' if request.args.get('order') == 'desc' else 'up' }}"></i>
+                            {% endif %}
+                        </a>
+                        <a href="{{ url_for('patients.list_assessments', **request.args, sort='type', order='desc' if request.args.get('order') != 'desc' else 'asc') }}"
+                           class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'type' %}active{% endif %}">
+                            Type
+                            {% if request.args.get('sort') == 'type' %}
+                            <i class="bi bi-arrow-{{ 'down' if request.args.get('order') == 'desc' else 'up' }}"></i>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+                <div class="text-muted">
+                    Showing {{ assessments.total }} result{{ 's' if assessments.total != 1 else '' }}
+                </div>
+            </div>
+
+            <!-- Assessment List -->
+            <div class="list-group">
+                {% for assessment in assessments.items %}
+                <a href="{{ url_for('patients.view_assessment', patient_id=assessment.patient_id, result_id=assessment.id) }}" 
+                   class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">{{ assessment.tool.name }}</h5>
+                            <p class="mb-1">
+                                Patient: {{ assessment.patient.family_name }}, {{ assessment.patient.given_name }}
+                                <br>
+                                <small class="text-muted">
+                                    Score: {{ "%.1f"|format(assessment.total_score) if assessment.total_score else 'N/A' }}
+                                </small>
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {% if assessment.status == 'completed' %}bg-success{% elif assessment.status == 'draft' %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ assessment.status|title }}
+                            </span>
+                            <br>
+                            <small class="text-muted">{{ assessment.assessment_date.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="list-group-item">
+                    <p class="mb-0">No assessments found matching the criteria.</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if assessments.pages > 1 %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% for page in range(1, assessments.pages + 1) %}
+                    <li class="page-item {{ 'active' if page == assessments.page else '' }}">
+                        <a class="page-link" href="{{ url_for('patients.list_assessments', page=page, **request.args) }}">{{ page }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
