@@ -27,7 +27,7 @@
                     </div>
 
                     <!-- Document Upload Section -->
-                    <div id="documentSection" class="mb-4 {% if result.entry_mode != 'document' %}d-none{% endif %}">
+                    <div id="documentSection" class="mb-4">
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="card-title">Upload Document</h5>
@@ -44,7 +44,7 @@
                                 </form>
                                 
                                 <!-- Upload Progress -->
-                                <div id="uploadProgress" class="progress d-none">
+                                <div id="uploadProgress" class="progress d-none mb-3">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated" 
                                          role="progressbar" style="width: 0%"></div>
                                 </div>
@@ -66,7 +66,7 @@
                     </div>
 
                     <!-- Manual Entry Form -->
-                    <form method="POST" id="assessmentForm" class="{% if result.entry_mode == 'document' %}d-none{% endif %}">
+                    <form method="POST" id="assessmentForm">
                         {% for question in result.tool.questions|sort(attribute='order') %}
                         <div class="mb-4">
                             <label class="form-label {% if question.required %}required-field{% endif %}">
@@ -142,6 +142,16 @@
     color: #dc3545;
     font-weight: bold;
 }
+
+.btn-group[role="group"] {
+    display: flex;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.btn-group[role="group"] .btn {
+    flex: 1;
+}
 </style>
 
 {% endblock %}
@@ -157,18 +167,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadProgress = document.getElementById('uploadProgress');
     const processingStatus = document.getElementById('processingStatus');
 
-    // Handle entry mode toggle
-    entryModeInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            if (this.value === 'document') {
-                documentSection.classList.remove('d-none');
-                assessmentForm.classList.add('d-none');
-            } else {
-                documentSection.classList.add('d-none');
-                assessmentForm.classList.remove('d-none');
-            }
-        });
+    // Initialize entry mode toggle display
+    const entryModeToggle = document.querySelector('.btn-group[role="group"]');
+    if (entryModeToggle) {
+        entryModeToggle.style.display = 'flex';
+    }
+
+    // Initialize document section visibility
+    if (documentSection) {
+        documentSection.style.display = '{{ result.entry_mode }}' === 'document' ? 'block' : 'none';
+    }
+
+    function updateFormVisibility(mode) {
+        const documentSection = document.getElementById('documentSection');
+        const manualForm = document.getElementById('assessmentForm');
+        
+        if (documentSection && manualForm) {
+            documentSection.style.display = mode === 'document' ? 'block' : 'none';
+            manualForm.style.display = mode === 'manual' ? 'block' : 'none';
+        }
+    }
+
+    // Add event listeners for radio buttons
+    document.querySelectorAll('input[name="entry_mode"]').forEach(input => {
+        input.addEventListener('change', (e) => updateFormVisibility(e.target.value));
     });
+
+    // Initialize visibility based on current mode
+    updateFormVisibility(document.querySelector('input[name="entry_mode"]:checked')?.value || 'manual');
 
     // Handle document upload
     documentUploadForm.addEventListener('submit', async function(e) {
