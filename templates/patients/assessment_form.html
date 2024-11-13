@@ -9,7 +9,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <h2>{{ result.tool.name }}</h2>
                         <div>
-                            <a href="{{ url_for('patients.list_assessments', id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
+                            <a href="{{ url_for('patients.patient_assessments', patient_id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
                         </div>
                     </div>
                     <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
