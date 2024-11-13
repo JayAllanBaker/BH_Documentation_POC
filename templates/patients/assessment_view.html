@@ -16,7 +16,7 @@
                             <button onclick="exportToPDF()" class="btn btn-success">
                                 <i class="bi bi-file-earmark-pdf"></i> Export PDF
                             </button>
-                            <a href="{{ url_for('patients.list_assessments', id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
+                            <a href="{{ url_for('patients.patient_assessments', patient_id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
                         </div>
                     </div>
                     <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
