@@ -73,21 +73,21 @@
                 <div>
                     <span class="me-2">Sort by:</span>
                     <div class="btn-group">
-                        <a href="{{ url_for('patients.all_assessments', sort='date', order='desc' if request.args.get('order') != 'desc' else 'asc', **{key: value for key, value in request.args.items() if key not in ['sort', 'order']}) }}" 
+                        <a href="{{ url_for('patients.all_assessments', sort='date', order=('desc' if request.args.get('order') != 'desc' else 'asc')) }}"
                            class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'date' %}active{% endif %}">
                             Date
                             {% if request.args.get('sort') == 'date' %}
                             <i class="bi bi-arrow-{{ 'down' if request.args.get('order') == 'desc' else 'up' }}"></i>
                             {% endif %}
                         </a>
-                        <a href="{{ url_for('patients.all_assessments', sort='patient', order='desc' if request.args.get('order') != 'desc' else 'asc', **{key: value for key, value in request.args.items() if key not in ['sort', 'order']}) }}"
+                        <a href="{{ url_for('patients.all_assessments', sort='patient', order=('desc' if request.args.get('order') != 'desc' else 'asc')) }}"
                            class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'patient' %}active{% endif %}">
                             Patient
                             {% if request.args.get('sort') == 'patient' %}
                             <i class="bi bi-arrow-{{ 'down' if request.args.get('order') == 'desc' else 'up' }}"></i>
                             {% endif %}
                         </a>
-                        <a href="{{ url_for('patients.all_assessments', sort='type', order='desc' if request.args.get('order') != 'desc' else 'asc', **{key: value for key, value in request.args.items() if key not in ['sort', 'order']}) }}"
+                        <a href="{{ url_for('patients.all_assessments', sort='type', order=('desc' if request.args.get('order') != 'desc' else 'asc')) }}"
                            class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'type' %}active{% endif %}">
                             Type
                             {% if request.args.get('sort') == 'type' %}
@@ -139,7 +139,7 @@
                 <ul class="pagination justify-content-center">
                     {% for page in range(1, assessments.pages + 1) %}
                     <li class="page-item {{ 'active' if page == assessments.page else '' }}">
-                        <a class="page-link" href="{{ url_for('patients.all_assessments', page=page, **{key: value for key, value in request.args.items() if key != 'page'}) }}">{{ page }}</a>
+                        <a class="page-link" href="{{ url_for('patients.all_assessments', page=page) }}">{{ page }}</a>
                     </li>
                     {% endfor %}
                 </ul>
