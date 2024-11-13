@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2>{{ result.tool.name }}</h2>
+                        <div>
+                            {% if result.status == 'draft' %}
+                            <a href="{{ url_for('patients.edit_assessment', patient_id=patient.id, result_id=result.id) }}" 
+                               class="btn btn-primary">Continue Assessment</a>
+                            {% endif %}
+                            <a href="{{ url_for('patients.list_assessments', id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Status</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge {% if result.status == 'completed' %}bg-success{% elif result.status == 'draft' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ result.status|title }}
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-4">Assessment Date</dt>
+                                <dd class="col-sm-8">{{ result.assessment_date.strftime('%Y-%m-%d %H:%M') }}</dd>
+
+                                <dt class="col-sm-4">Assessor</dt>
+                                <dd class="col-sm-8">{{ result.assessor.username }}</dd>
+
+                                {% if result.total_score is not none %}
+                                <dt class="col-sm-4">Total Score</dt>
+                                <dd class="col-sm-8">{{ "%.1f"|format(result.total_score) }}</dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+
+                    <h3>Responses</h3>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Question</th>
+                                    <th>Response</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for question in result.tool.questions|sort(attribute='order') %}
+                                {% set response = result.responses|selectattr('question_id', 'equalto', question.id)|first %}
+                                <tr>
+                                    <td>
+                                        {{ question.question_text }}
+                                        {% if question.help_text %}
+                                        <div><small class="text-muted">{{ question.help_text }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if response %}
+                                            {% if question.question_type == 'scale' or question.question_type == 'multiple_choice' %}
+                                                {% set option = question.options|selectattr('value', 'equalto', response.response_value)|first %}
+                                                {{ option.text if option else response.response_value }}
+                                            {% else %}
+                                                {{ response.response_value|title }}
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">No response</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.1f"|format(response.score) if response and response.score is not none else '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if result.clinical_notes %}
+                    <div class="mt-4">
+                        <h3>Clinical Notes</h3>
+                        <p>{{ result.clinical_notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Assessment Tools</h2>
+                <div>
+                    <a href="{{ url_for('admin.create_assessment_tool') }}" class="btn btn-primary">Add New Tool</a>
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% for tool in tools %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="card-title">{{ tool.name }}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">Version: {{ tool.version }}</h6>
+                            <p class="card-text">{{ tool.description }}</p>
+                            <div class="mb-2">
+                                <span class="badge bg-primary">{{ tool.tool_type }}</span>
+                                <span class="badge {% if tool.active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ 'Active' if tool.active else 'Inactive' }}
+                                </span>
+                            </div>
+                            <small class="text-muted">Questions: {{ tool.questions|length }}</small>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('admin.edit_assessment_tool', id=tool.id) }}" 
+                               class="btn btn-sm btn-outline-primary">Edit</a>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteToolModal{{ tool.id }}">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Modal -->
+            <div class="modal fade" id="deleteToolModal{{ tool.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Delete Assessment Tool</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete "{{ tool.name }}"?</p>
+                            <p class="text-danger">
+                                <strong>Warning:</strong> This will also delete all associated questions and responses.
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <form action="{{ url_for('admin.delete_assessment_tool', id=tool.id) }}" method="POST">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                No assessment tools found. Click "Add New Tool" to create one.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

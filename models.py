@@ -102,6 +102,7 @@ class Patient(db.Model):
     documents = db.relationship('Document', backref='patient', lazy=True)
     identifiers = db.relationship('PatientIdentifier', backref='patient', lazy=True, cascade='all, delete-orphan')
     conditions = db.relationship('Condition', backref='patient', lazy=True, cascade='all, delete-orphan')
+    assessment_results = db.relationship('AssessmentResult', backref='patient', lazy=True, cascade='all, delete-orphan')
 
     __table_args__ = (
         db.Index('idx_patient_name', 'family_name', 'given_name'),
@@ -174,3 +175,92 @@ class ICD10Code(db.Model):
                 ICD10Code.description.ilike(f'%{query}%')
             )
         ).limit(limit).all()
+
+class AssessmentTool(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    version = db.Column(db.String(20))
+    tool_type = db.Column(db.String(50), nullable=False)  # e.g., 'COWS', 'CIWA', etc.
+    scoring_logic = db.Column(db.JSON)  # Store scoring rules and thresholds
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    active = db.Column(db.Boolean, default=True)
+    questions = db.relationship('AssessmentQuestion', backref='tool', lazy=True, cascade='all, delete-orphan')
+    results = db.relationship('AssessmentResult', backref='tool', lazy=True)
+
+    __table_args__ = (
+        db.Index('idx_assessment_tool_name', 'name'),
+        db.Index('idx_assessment_tool_type', 'tool_type'),
+    )
+
+class AssessmentQuestion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tool_id = db.Column(db.Integer, db.ForeignKey('assessment_tool.id'), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    order = db.Column(db.Integer, nullable=False)
+    question_type = db.Column(db.String(50), nullable=False)  # e.g., 'scale', 'multiple_choice', 'boolean'
+    options = db.Column(db.JSON)  # Store possible answers and their corresponding scores
+    required = db.Column(db.Boolean, default=True)
+    help_text = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    responses = db.relationship('AssessmentResponse', backref='question', lazy=True)
+
+    __table_args__ = (
+        db.Index('idx_assessment_question_tool', 'tool_id', 'order'),
+    )
+
+class AssessmentResponse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    result_id = db.Column(db.Integer, db.ForeignKey('assessment_result.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('assessment_question.id'), nullable=False)
+    response_value = db.Column(db.String(500), nullable=False)  # Store the actual response
+    score = db.Column(db.Float)  # Calculated score for this response
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('idx_assessment_response_result', 'result_id'),
+        db.Index('idx_assessment_response_question', 'question_id'),
+    )
+
+class AssessmentResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    tool_id = db.Column(db.Integer, db.ForeignKey('assessment_tool.id'), nullable=False)
+    assessor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    total_score = db.Column(db.Float)
+    assessment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    clinical_notes = db.Column(db.Text)
+    status = db.Column(db.String(20), nullable=False, default='draft')  # draft, completed, invalid
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    responses = db.relationship('AssessmentResponse', backref='result', lazy=True, cascade='all, delete-orphan')
+    assessor = db.relationship('User', backref='assessment_results')
+
+    __table_args__ = (
+        db.Index('idx_assessment_result_patient', 'patient_id'),
+        db.Index('idx_assessment_result_tool', 'tool_id'),
+        db.Index('idx_assessment_result_date', 'assessment_date'),
+    )
+
+    def calculate_score(self):
+        """Calculate the total score based on responses and tool scoring logic"""
+        total = 0
+        if not self.responses:
+            return total
+
+        for response in self.responses:
+            if response.score is not None:
+                total += response.score
+
+        self.total_score = total
+        return total
+
+    def validate_responses(self):
+        """Validate that all required questions have responses"""
+        required_questions = {q.id for q in self.tool.questions if q.required}
+        answered_questions = {r.question_id for r in self.responses}
+        return required_questions.issubset(answered_questions)

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2>{{ result.tool.name }}</h2>
+                        <div>
+                            <a href="{{ url_for('patients.list_assessments', id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="assessmentForm">
+                        {% for question in result.tool.questions|sort(attribute='order') %}
+                        <div class="mb-4">
+                            <label class="form-label {% if question.required %}required-field{% endif %}">
+                                {{ question.question_text }}
+                            </label>
+                            {% if question.help_text %}
+                            <div class="form-text mb-2">{{ question.help_text }}</div>
+                            {% endif %}
+
+                            {% if question.question_type == 'scale' %}
+                            <div class="btn-group w-100" role="group">
+                                {% for option in question.options %}
+                                <input type="radio" class="btn-check" name="response_{{ question.id }}" 
+                                       id="q{{ question.id }}_{{ loop.index }}" value="{{ option.value }}"
+                                       {{ 'required' if question.required }}
+                                       {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
+                                <label class="btn btn-outline-primary" for="q{{ question.id }}_{{ loop.index }}"
+                                       title="{{ option.text }}">
+                                    {{ option.text }}
+                                </label>
+                                {% endfor %}
+                            </div>
+
+                            {% elif question.question_type == 'multiple_choice' %}
+                            <select class="form-select" name="response_{{ question.id }}" 
+                                    {{ 'required' if question.required }}>
+                                <option value="">Select an option</option>
+                                {% for option in question.options %}
+                                <option value="{{ option.value }}"
+                                        {{ 'selected' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
+                                    {{ option.text }}
+                                </option>
+                                {% endfor %}
+                            </select>
+
+                            {% elif question.question_type == 'boolean' %}
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="response_{{ question.id }}" 
+                                       id="q{{ question.id }}_yes" value="yes"
+                                       {{ 'required' if question.required }}
+                                       {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == 'yes' }}>
+                                <label class="btn btn-outline-success" for="q{{ question.id }}_yes">Yes</label>
+                                
+                                <input type="radio" class="btn-check" name="response_{{ question.id }}" 
+                                       id="q{{ question.id }}_no" value="no"
+                                       {{ 'required' if question.required }}
+                                       {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == 'no' }}>
+                                <label class="btn btn-outline-danger" for="q{{ question.id }}_no">No</label>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <div class="mb-3">
+                            <label for="clinical_notes" class="form-label">Clinical Notes</label>
+                            <textarea class="form-control" id="clinical_notes" name="clinical_notes" rows="3">{{ result.clinical_notes or '' }}</textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" name="action" value="save" class="btn btn-secondary">Save Draft</button>
+                            <button type="submit" name="action" value="complete" class="btn btn-primary">Complete Assessment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required-field::after {
+    content: " *";
+    color: #dc3545;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
