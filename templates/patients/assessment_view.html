@@ -13,12 +13,15 @@
                             <a href="{{ url_for('patients.edit_assessment', patient_id=patient.id, result_id=result.id) }}" 
                                class="btn btn-primary">Continue Assessment</a>
                             {% endif %}
+                            <button onclick="exportToPDF()" class="btn btn-success">
+                                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                            </button>
                             <a href="{{ url_for('patients.list_assessments', id=patient.id) }}" class="btn btn-secondary">Back to Assessments</a>
                         </div>
                     </div>
                     <p class="text-muted mb-0">Patient: {{ patient.family_name }}, {{ patient.given_name }}</p>
                 </div>
-                <div class="card-body">
+                <div class="card-body" id="assessment-content">
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <dl class="row">
@@ -93,4 +96,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function exportToPDF() {
+    const element = document.getElementById('assessment-content');
+    const opt = {
+        margin: 1,
+        filename: '{{ result.tool.name }}_{{ patient.family_name }}_{{ result.assessment_date.strftime("%Y%m%d") }}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save();
+}
+</script>
 {% endblock %}
