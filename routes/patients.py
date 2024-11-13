@@ -216,7 +216,8 @@ def edit_assessment(patient_id, result_id):
             action = request.form.get('action')
             if action == 'complete':
                 result.status = 'completed'
-                result.total_score = result.calculate_score()
+                # Calculate and set total score before commit
+                result.total_score = sum(float(resp.score) for resp in new_responses if resp.score is not None)
                 flash('Assessment completed', 'success')
             else:
                 flash('Assessment saved', 'success')

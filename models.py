@@ -252,15 +252,10 @@ class AssessmentResult(db.Model):
 
     def calculate_score(self):
         """Calculate the total score based on responses and tool scoring logic"""
-        total = 0
-        if not self.responses:
-            return total
-
+        total = 0.0
         for response in self.responses:
             if response.score is not None:
-                total += response.score
-
-        self.total_score = total
+                total += float(response.score)
         return total
 
     def validate_responses(self):
