@@ -146,7 +146,7 @@
                             <small>ID: {{ patient.identifier }}</small>
                             {% if patient.assessment_results %}
                             <small class="text-muted">
-                                Latest Assessment: {{ patient.assessment_results|sort(attribute='assessment_date')|last.assessment_date.strftime('%Y-%m-%d') }}
+                                Latest Assessment: {{ (patient.assessment_results|sort(attribute='assessment_date')|last).assessment_date.strftime('%Y-%m-%d') }}
                             </small>
                             {% endif %}
                         </div>
