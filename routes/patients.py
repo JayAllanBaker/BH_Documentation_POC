@@ -461,69 +461,53 @@ def upload_assessment_document(patient_id, result_id):
     if result.status != 'draft':
         return jsonify({'error': 'Cannot modify a completed assessment'}), 400
     
-    if 'document' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
-        
-    file = request.files['document']
-    if not file.filename:
-        return jsonify({'error': 'No file selected'}), 400
-        
     try:
-        # Save the document
+        if 'document' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+            
+        file = request.files['document']
+        if not file.filename:
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+            
+        # Validate file type
+        allowed_extensions = {'txt', 'doc', 'docx', 'pdf', 'wav', 'mp3'}
+        if not '.' in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+            
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join(current_app.root_path, 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Save file with secure filename
         filename = secure_filename(file.filename)
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+        filepath = os.path.join(upload_dir, filename)
+        file.save(filepath)
         
-        # Create document record
-        document = Document()
-        document.title = f"Assessment Document - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        document.content = "Uploaded for assessment"
-        document.user_id = current_user.id
-        document.patient_id = patient.id
+        # Process file and extract assessment data
+        extracted_data = extract_assessment_data(filepath, result.tool_type)
         
-        if file_path.lower().endswith(('.wav', '.mp3')):
-            document.audio_file = filename
-        else:
-            with open(file_path, 'r') as f:
-                document.content = f.read()
-        
-        db.session.add(document)
-        db.session.flush()  # Get document ID
-        
-        # Process document content
-        extracted_data = extract_assessment_data(file_path, result.tool)
-        
-        # Update assessment responses from extracted data
-        for question_id, response_value in extracted_data.items():
-            response = AssessmentResponse()
-            response.result_id = result.id
-            response.question_id = question_id
-            response.response_value = response_value
-            
-            # Calculate score if applicable
-            question = next((q for q in result.tool.questions if q.id == question_id), None)
-            if question and question.options:
-                option = next((opt for opt in question.options if opt['value'] == response_value), None)
-                if option and 'score' in option:
-                    response.score = float(option['score'])
-            
+        # Update assessment with extracted data
+        for question_id, value in extracted_data.items():
+            # Convert array responses to string format
+            if isinstance(value, list):
+                response_value = ', '.join(str(v) for v in value)
+            else:
+                response_value = str(value)
+                
+            response = AssessmentResponse(
+                result_id=result.id,
+                question_id=question_id,
+                response_value=response_value
+            )
             db.session.add(response)
-        
-        result.document_id = document.id
-        result.entry_mode = 'document'
+            
         db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Document processed successfully'
-        })
+        return jsonify({'success': True})
         
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'Error processing document: {str(e)}')
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'An error occurred during upload'}), 500
 
 @patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/remove-document', methods=['POST'])
 @login_required
