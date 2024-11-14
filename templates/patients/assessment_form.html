@@ -80,53 +80,127 @@
 
                     <!-- Manual Entry Form -->
                     <form method="POST" id="assessmentForm">
-                        {% for question in result.tool.questions|sort(attribute='order') %}
-                        <div class="mb-4">
-                            <label class="form-label {% if question.required %}required-field{% endif %}">
-                                {{ question.question_text }}
-                            </label>
-                            {% if question.help_text %}
-                            <div class="form-text mb-2">{{ question.help_text }}</div>
-                            {% endif %}
+                        <!-- Personal Characteristics Section -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Personal Characteristics</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for question in result.tool.questions|sort(attribute='order') %}
+                                {% if question.order <= 5 %}
+                                <div class="mb-4">
+                                    <label class="form-label {% if question.required %}required-field{% endif %}">
+                                        {{ question.question_text }}
+                                    </label>
+                                    {% if question.help_text %}
+                                    <div class="form-text mb-2">{{ question.help_text }}</div>
+                                    {% endif %}
 
-                            {% if question.question_type == 'scale' %}
-                            <div class="btn-group w-100" role="group">
-                                {% for option in question.options %}
-                                <input type="radio" class="btn-check" name="response_{{ question.id }}" 
-                                       id="q{{ question.id }}_{{ loop.index }}" value="{{ option.value }}"
-                                       {{ 'required' if question.required }}
-                                       {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
-                                <label class="btn btn-outline-primary" for="q{{ question.id }}_{{ loop.index }}"
-                                       title="{{ option.text }}">
-                                    {{ option.text }}
-                                </label>
+                                    {% if question.question_type == 'multiple_choice' %}
+                                    <div class="{% if question.order == 2 %}d-flex flex-column gap-2{% else %}btn-group w-100{% endif %}" role="group">
+                                        {% for option in question.options %}
+                                        <div class="{% if question.order == 2 %}form-check{% endif %}">
+                                            <input type="{{ 'checkbox' if question.order == 2 else 'radio' }}" 
+                                                   class="{{ 'form-check-input' if question.order == 2 else 'btn-check' }}" 
+                                                   name="response_{{ question.id }}{% if question.order == 2 %}[]{% endif %}" 
+                                                   id="q{{ question.id }}_{{ loop.index }}" 
+                                                   value="{{ option.value }}"
+                                                   {{ 'required' if question.required and loop.first }}
+                                                   {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
+                                            <label class="{{ 'form-check-label' if question.order == 2 else 'btn btn-outline-primary' }}" 
+                                                   for="q{{ question.id }}_{{ loop.index }}">
+                                                {{ option.text }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% elif question.question_type == 'text' %}
+                                    <input type="text" class="form-control" name="response_{{ question.id }}"
+                                           value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
+                                           {{ 'required' if question.required }}>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                                 {% endfor %}
                             </div>
-
-                            {% elif question.question_type == 'multiple_choice' %}
-                            <select class="form-select" name="response_{{ question.id }}" 
-                                    {{ 'required' if question.required }}>
-                                <option value="">Select an option</option>
-                                {% for option in question.options %}
-                                <option value="{{ option.value }}"
-                                        {{ 'selected' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
-                                    {{ option.text }}
-                                </option>
-                                {% endfor %}
-                            </select>
-
-                            {% elif question.question_type == 'text' %}
-                            <input type="text" class="form-control" name="response_{{ question.id }}"
-                                   value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
-                                   {{ 'required' if question.required }}>
-
-                            {% elif question.question_type == 'number' %}
-                            <input type="number" class="form-control" name="response_{{ question.id }}"
-                                   value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
-                                   min="0" {{ 'required' if question.required }}>
-                            {% endif %}
                         </div>
-                        {% endfor %}
+
+                        <!-- Family & Home Section -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Family & Home</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for question in result.tool.questions|sort(attribute='order') %}
+                                {% if question.order > 5 and question.order <= 8 %}
+                                <div class="mb-4">
+                                    <label class="form-label {% if question.required %}required-field{% endif %}">
+                                        {{ question.question_text }}
+                                    </label>
+                                    {% if question.help_text %}
+                                    <div class="form-text mb-2">{{ question.help_text }}</div>
+                                    {% endif %}
+
+                                    {% if question.question_type == 'number' %}
+                                    <input type="number" class="form-control" name="response_{{ question.id }}"
+                                           value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
+                                           min="0" {{ 'required' if question.required }}>
+                                    {% elif question.question_type == 'multiple_choice' %}
+                                    <div class="btn-group w-100" role="group">
+                                        {% for option in question.options %}
+                                        <input type="radio" class="btn-check" name="response_{{ question.id }}" 
+                                               id="q{{ question.id }}_{{ loop.index }}" value="{{ option.value }}"
+                                               {{ 'required' if question.required }}
+                                               {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
+                                        <label class="btn btn-outline-primary" for="q{{ question.id }}_{{ loop.index }}">
+                                            {{ option.text }}
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Money & Resources Section -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Money & Resources</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for question in result.tool.questions|sort(attribute='order') %}
+                                {% if question.order > 8 %}
+                                <div class="mb-4">
+                                    <label class="form-label {% if question.required %}required-field{% endif %}">
+                                        {{ question.question_text }}
+                                    </label>
+                                    {% if question.help_text %}
+                                    <div class="form-text mb-2">{{ question.help_text }}</div>
+                                    {% endif %}
+
+                                    {% if question.question_type == 'text' %}
+                                    <input type="text" class="form-control" name="response_{{ question.id }}"
+                                           value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
+                                           {{ 'required' if question.required }}>
+                                    {% elif question.question_type == 'multiple_choice' %}
+                                    <select class="form-select" name="response_{{ question.id }}" 
+                                            {{ 'required' if question.required }}>
+                                        <option value="">Select an option</option>
+                                        {% for option in question.options %}
+                                        <option value="{{ option.value }}"
+                                                {{ 'selected' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
+                                            {{ option.text }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
 
                         <div class="mb-3">
                             <label for="clinical_notes" class="form-label">Clinical Notes</label>
@@ -163,6 +237,9 @@
     align-items: center;
     justify-content: center;
     padding: 0.5rem;
+    white-space: normal;
+    text-align: center;
+    min-height: 48px;
 }
 
 #documentSection {
@@ -172,6 +249,18 @@
 .progress {
     height: 0.5rem;
     margin-top: 0.5rem;
+}
+
+.card {
+    margin-bottom: 2rem;
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
 }
 </style>
 
@@ -187,9 +276,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const documentUploadForm = document.getElementById('documentUploadForm');
     const uploadProgress = documentUploadForm.querySelector('.progress');
     const processingStatus = document.getElementById('processingStatus');
-
-    const patientId = {{ patient.id }};
-    const resultId = {{ result.id }};
 
     function updateFormVisibility(mode) {
         if (documentSection && assessmentForm) {
@@ -228,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
             progressBar.style.width = '0%';
             progressBar.style.width = '50%';  // Show upload progress
 
-            const response = await fetch(`/patients/${patientId}/assessments/${resultId}/upload`, {
+            const response = await fetch(`/patients/{{ patient.id }}/assessments/{{ result.id }}/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -256,6 +342,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 1000);
         }
     });
+
+    // Handle form validation for race checkboxes (question 2)
+    const raceCheckboxes = document.querySelectorAll('input[name^="response_"][type="checkbox"]');
+    if (raceCheckboxes.length > 0) {
+        const form = document.getElementById('assessmentForm');
+        form.addEventListener('submit', function(e) {
+            const checkedRaces = Array.from(raceCheckboxes).some(cb => cb.checked);
+            const noAnswerChecked = Array.from(raceCheckboxes).find(cb => cb.value === 'no_answer')?.checked;
+            
+            if (!checkedRaces && !noAnswerChecked) {
+                e.preventDefault();
+                alert('Please select at least one race or choose "I choose not to answer this question"');
+            }
+        });
+    }
 });
 
 function removeDocument() {
