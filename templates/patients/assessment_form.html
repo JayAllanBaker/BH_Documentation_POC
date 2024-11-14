@@ -22,13 +22,13 @@
                             <input type="radio" class="btn-check" name="entry_mode" id="manual_mode" value="manual" 
                                    autocomplete="off" {% if result.entry_mode != 'document' %}checked{% endif %}>
                             <label class="btn btn-outline-primary" for="manual_mode">
-                                <i class="fas fa-keyboard me-2"></i>Manual Entry
+                                <i class="bi bi-keyboard"></i> Manual Entry
                             </label>
 
                             <input type="radio" class="btn-check" name="entry_mode" id="document_mode" value="document" 
                                    autocomplete="off" {% if result.entry_mode == 'document' %}checked{% endif %}>
                             <label class="btn btn-outline-primary" for="document_mode">
-                                <i class="fas fa-file-upload me-2"></i>Document Upload
+                                <i class="bi bi-file-earmark-arrow-up"></i> Document Upload
                             </label>
                         </div>
                     </div>
@@ -53,15 +53,13 @@
                                                  role="progressbar" style="width: 0%"></div>
                                         </div>
                                     </div>
+                                    <div id="processingStatus" class="alert alert-info d-none">
+                                        Processing document...
+                                    </div>
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-upload me-2"></i>Upload & Process
+                                        <i class="bi bi-upload"></i> Upload & Process
                                     </button>
                                 </form>
-
-                                <!-- Processing Status -->
-                                <div id="processingStatus" class="alert alert-info d-none mt-3">
-                                    Processing document...
-                                </div>
 
                                 {% if result.document %}
                                 <div class="alert alert-success mt-3">
@@ -110,21 +108,6 @@
                                 </option>
                                 {% endfor %}
                             </select>
-
-                            {% elif question.question_type == 'boolean' %}
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="response_{{ question.id }}" 
-                                       id="q{{ question.id }}_yes" value="yes"
-                                       {{ 'required' if question.required }}
-                                       {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == 'yes' }}>
-                                <label class="btn btn-outline-success" for="q{{ question.id }}_yes">Yes</label>
-                                
-                                <input type="radio" class="btn-check" name="response_{{ question.id }}" 
-                                       id="q{{ question.id }}_no" value="no"
-                                       {{ 'required' if question.required }}
-                                       {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == 'no' }}>
-                                <label class="btn btn-outline-danger" for="q{{ question.id }}_no">No</label>
-                            </div>
 
                             {% elif question.question_type == 'text' %}
                             <input type="text" class="form-control" name="response_{{ question.id }}"
@@ -232,8 +215,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             uploadProgress.classList.remove('d-none');
+            processingStatus.classList.remove('d-none');
+            processingStatus.textContent = 'Uploading document...';
+            
             const progressBar = uploadProgress.querySelector('.progress-bar');
             progressBar.style.width = '0%';
+            progressBar.style.width = '50%';  // Show upload progress
 
             const response = await fetch(`/patients/${patientId}/assessments/${resultId}/upload`, {
                 method: 'POST',
@@ -247,7 +234,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (result.success) {
-                window.location.reload();
+                processingStatus.textContent = 'Processing complete!';
+                progressBar.style.width = '100%';
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 throw new Error(result.error || 'Processing failed');
             }
@@ -255,8 +244,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Upload error:', error);
             alert(error.message || 'An error occurred during upload');
         } finally {
-            uploadProgress.classList.add('d-none');
-            processingStatus.classList.add('d-none');
+            setTimeout(() => {
+                uploadProgress.classList.add('d-none');
+                processingStatus.classList.add('d-none');
+            }, 1000);
         }
     });
 });

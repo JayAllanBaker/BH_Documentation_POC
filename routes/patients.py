@@ -452,15 +452,6 @@ def delete_assessment(patient_id, result_id):
 @login_required
 @audit_log(action='upload', resource_type='assessment_document')
 def upload_assessment_document(patient_id, result_id):
-    patient = Patient.query.get_or_404(patient_id)
-    result = AssessmentResult.query.get_or_404(result_id)
-    
-    if result.patient_id != patient.id:
-        return jsonify({'error': 'Access denied'}), 403
-        
-    if result.status != 'draft':
-        return jsonify({'error': 'Cannot modify a completed assessment'}), 400
-    
     try:
         if 'document' not in request.files:
             return jsonify({'success': False, 'error': 'No file provided'}), 400
@@ -469,11 +460,11 @@ def upload_assessment_document(patient_id, result_id):
         if not file.filename:
             return jsonify({'success': False, 'error': 'No file selected'}), 400
             
-        # Validate file type
-        allowed_extensions = {'txt', 'doc', 'docx', 'pdf', 'wav', 'mp3'}
-        if not '.' in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
-            return jsonify({'success': False, 'error': 'Invalid file type'}), 400
-            
+        result = AssessmentResult.query.get_or_404(result_id)
+        
+        # Use the tool's type instead of result's type
+        tool_type = result.tool.tool_type
+        
         # Create uploads directory if it doesn't exist
         upload_dir = os.path.join(current_app.root_path, 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
@@ -484,7 +475,7 @@ def upload_assessment_document(patient_id, result_id):
         file.save(filepath)
         
         # Process file and extract assessment data
-        extracted_data = extract_assessment_data(filepath, result.tool_type)
+        extracted_data = extract_assessment_data(filepath, tool_type)
         
         # Update assessment with extracted data
         for question_id, value in extracted_data.items():
@@ -507,7 +498,7 @@ def upload_assessment_document(patient_id, result_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'Error processing document: {str(e)}')
-        return jsonify({'success': False, 'error': 'An error occurred during upload'}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/remove-document', methods=['POST'])
 @login_required
