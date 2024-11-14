@@ -10,7 +10,14 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="identifier_type" class="form-label">Type</label>
-                        <input type="text" class="form-control" id="identifier_type" name="type" required>
+                        <select class="form-select" id="identifier_type" name="type" required>
+                            <option value="">Select identifier type</option>
+                            <option value="MRN">Medical Record Number</option>
+                            <option value="SSN">Social Security Number</option>
+                            <option value="DL">Driver's License</option>
+                            <option value="PASSPORT">Passport</option>
+                            <option value="OTHER">Other</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="identifier_value" class="form-label">Value</label>
@@ -34,11 +41,18 @@
                 <h5 class="modal-title">Edit Identifier</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('patients.edit_identifier', id=patient.id, identifier_id=0) }}" id="editIdentifierForm">
+            <form method="POST" id="editIdentifierForm">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="edit_identifier_type" class="form-label">Type</label>
-                        <input type="text" class="form-control" id="edit_identifier_type" name="type" required>
+                        <select class="form-select" id="edit_identifier_type" name="type" required>
+                            <option value="">Select identifier type</option>
+                            <option value="MRN">Medical Record Number</option>
+                            <option value="SSN">Social Security Number</option>
+                            <option value="DL">Driver's License</option>
+                            <option value="PASSPORT">Passport</option>
+                            <option value="OTHER">Other</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="edit_identifier_value" class="form-label">Value</label>
@@ -53,3 +67,12 @@
         </div>
     </div>
 </div>
+
+<script>
+function setupEditIdentifierModal(identifierId, currentType, currentValue) {
+    const form = document.getElementById('editIdentifierForm');
+    form.action = "{{ url_for('patients.edit_identifier', id=patient.id, identifier_id=0) }}".replace('/0', '/' + identifierId);
+    document.getElementById('edit_identifier_type').value = currentType;
+    document.getElementById('edit_identifier_value').value = currentValue;
+}
+</script>

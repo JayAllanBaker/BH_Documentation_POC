@@ -73,9 +73,9 @@
                 <div>
                     <span class="me-2">Sort by:</span>
                     <div class="btn-group">
-                        {% set current_args = request.args.copy() %}
-                        {% set _ = current_args.pop('sort', None) %}
-                        {% set _ = current_args.pop('order', None) %}
+                        {% with current_args = request.args.to_dict() %}
+                        {% do current_args.pop('sort', None) %}
+                        {% do current_args.pop('order', None) %}
                         
                         <a href="{{ url_for('patients.all_assessments', sort='date', order='desc' if request.args.get('sort') == 'date' and request.args.get('order') != 'desc' else 'asc', **current_args) }}"
                            class="btn btn-outline-secondary btn-sm {% if request.args.get('sort') == 'date' %}active{% endif %}">
@@ -98,6 +98,7 @@
                             <i class="bi bi-arrow-{{ 'down' if request.args.get('order') == 'desc' else 'up' }}"></i>
                             {% endif %}
                         </a>
+                        {% endwith %}
                     </div>
                 </div>
                 <div class="text-muted">

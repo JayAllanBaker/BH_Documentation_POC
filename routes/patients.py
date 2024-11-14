@@ -9,6 +9,105 @@ from utils.ai_analysis import extract_assessment_data
 
 patients_bp = Blueprint('patients', __name__)
 
+@patients_bp.route('/patients/<int:id>/identifiers')
+@login_required
+def list_identifiers(id):
+    patient = Patient.query.get_or_404(id)
+    identifiers = PatientIdentifier.query.filter_by(patient_id=patient.id).all()
+    return render_template('patients/identifiers.html', patient=patient, identifiers=identifiers)
+
+@patients_bp.route('/patients/<int:id>/identifiers/add', methods=['POST'])
+@login_required
+@audit_log(action='create', resource_type='patient_identifier')
+def add_identifier(id):
+    patient = Patient.query.get_or_404(id)
+    identifier_type = request.form.get('type')
+    identifier_value = request.form.get('value')
+    
+    if not identifier_type or not identifier_value:
+        flash('Both type and value are required', 'danger')
+        return redirect(url_for('patients.view_patient', id=id))
+        
+    try:
+        identifier = PatientIdentifier()
+        identifier.patient_id = patient.id
+        identifier.identifier_type = identifier_type
+        identifier.identifier_value = identifier_value
+        db.session.add(identifier)
+        db.session.commit()
+        flash('Identifier added successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error adding identifier: {str(e)}')
+        flash('An error occurred while adding the identifier', 'danger')
+        
+    return redirect(url_for('patients.view_patient', id=id))
+
+@patients_bp.route('/patients/<int:id>/identifiers/<int:identifier_id>/edit', methods=['POST'])
+@login_required
+@audit_log(action='edit', resource_type='patient_identifier')
+def edit_identifier(id, identifier_id):
+    patient = Patient.query.get_or_404(id)
+    identifier = PatientIdentifier.query.get_or_404(identifier_id)
+    
+    if identifier.patient_id != patient.id:
+        flash('Access denied', 'danger')
+        return redirect(url_for('patients.view_patient', id=id))
+        
+    try:
+        identifier.identifier_type = request.form.get('type')
+        identifier.identifier_value = request.form.get('value')
+        db.session.commit()
+        flash('Identifier updated successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error updating identifier: {str(e)}')
+        flash('An error occurred while updating the identifier', 'danger')
+        
+    return redirect(url_for('patients.view_patient', id=id))
+
+@patients_bp.route('/patients/<int:id>/identifiers/<int:identifier_id>/delete', methods=['POST'])
+@login_required
+@audit_log(action='delete', resource_type='patient_identifier')
+def delete_identifier(id, identifier_id):
+    patient = Patient.query.get_or_404(id)
+    identifier = PatientIdentifier.query.get_or_404(identifier_id)
+    
+    if identifier.patient_id != patient.id:
+        flash('Access denied', 'danger')
+        return redirect(url_for('patients.view_patient', id=id))
+        
+    try:
+        db.session.delete(identifier)
+        db.session.commit()
+        flash('Identifier deleted successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error deleting identifier: {str(e)}')
+        flash('An error occurred while deleting the identifier', 'danger')
+        
+    return redirect(url_for('patients.view_patient', id=id))
+
+@patients_bp.route('/patients/<int:id>/edit-identifier/<int:identifier_id>')
+@login_required
+def edit_identifier_modal(id, identifier_id):
+    patient = Patient.query.get_or_404(id)
+    identifier = PatientIdentifier.query.get_or_404(identifier_id)
+    
+    if identifier.patient_id != patient.id:
+        flash('Access denied', 'danger')
+        return redirect(url_for('patients.view_patient', id=id))
+    
+    return render_template('patients/edit_identifier_modal.html', 
+                         patient=patient, 
+                         identifier=identifier)
+
+@patients_bp.route('/patients/<int:id>/add-identifier')
+@login_required
+def add_identifier_modal(id):
+    patient = Patient.query.get_or_404(id)
+    return render_template('patients/add_identifier_modal.html', patient=patient)
+
 @patients_bp.route('/patients')
 @login_required
 def list_patients():
@@ -456,83 +555,3 @@ def remove_assessment_document(patient_id, result_id):
         db.session.rollback()
         current_app.logger.error(f'Error removing document: {str(e)}')
         return jsonify({'error': str(e)}), 500
-
-@patients_bp.route('/patients/<int:id>/identifiers/add', methods=['POST'])
-@login_required
-@audit_log(action='create', resource_type='patient_identifier')
-def add_identifier(id):
-    patient = Patient.query.get_or_404(id)
-    identifier_type = request.form.get('type')
-    identifier_value = request.form.get('value')
-    
-    if not identifier_type or not identifier_value:
-        flash('Both type and value are required', 'danger')
-        return redirect(url_for('patients.view_patient', id=id))
-        
-    try:
-        identifier = PatientIdentifier(
-            patient_id=patient.id,
-            identifier_type=identifier_type,
-            identifier_value=identifier_value
-        )
-        db.session.add(identifier)
-        db.session.commit()
-        flash('Identifier added successfully', 'success')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Error adding identifier: {str(e)}')
-        flash('An error occurred while adding the identifier', 'danger')
-        
-    return redirect(url_for('patients.view_patient', id=id))
-
-@patients_bp.route('/patients/<int:id>/identifiers/<int:identifier_id>/edit', methods=['POST'])
-@login_required
-@audit_log(action='edit', resource_type='patient_identifier')
-def edit_identifier(id, identifier_id):
-    patient = Patient.query.get_or_404(id)
-    identifier = PatientIdentifier.query.get_or_404(identifier_id)
-    
-    if identifier.patient_id != patient.id:
-        flash('Access denied', 'danger')
-        return redirect(url_for('patients.view_patient', id=id))
-        
-    identifier_type = request.form.get('type')
-    identifier_value = request.form.get('value')
-    
-    if not identifier_type or not identifier_value:
-        flash('Both type and value are required', 'danger')
-        return redirect(url_for('patients.view_patient', id=id))
-        
-    try:
-        identifier.identifier_type = identifier_type
-        identifier.identifier_value = identifier_value
-        db.session.commit()
-        flash('Identifier updated successfully', 'success')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Error updating identifier: {str(e)}')
-        flash('An error occurred while updating the identifier', 'danger')
-        
-    return redirect(url_for('patients.view_patient', id=id))
-
-@patients_bp.route('/patients/<int:id>/identifiers/<int:identifier_id>/delete', methods=['POST'])
-@login_required
-@audit_log(action='delete', resource_type='patient_identifier')
-def delete_identifier(id, identifier_id):
-    patient = Patient.query.get_or_404(id)
-    identifier = PatientIdentifier.query.get_or_404(identifier_id)
-    
-    if identifier.patient_id != patient.id:
-        flash('Access denied', 'danger')
-        return redirect(url_for('patients.view_patient', id=id))
-        
-    try:
-        db.session.delete(identifier)
-        db.session.commit()
-        flash('Identifier deleted successfully', 'success')
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Error deleting identifier: {str(e)}')
-        flash('An error occurred while deleting the identifier', 'danger')
-        
-    return redirect(url_for('patients.view_patient', id=id))
