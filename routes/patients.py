@@ -460,10 +460,19 @@ def upload_assessment_document(patient_id, result_id):
         if not file.filename:
             return jsonify({'success': False, 'error': 'No file selected'}), 400
             
+        # Validate file type
+        allowed_extensions = {'txt', 'doc', 'docx', 'pdf', 'wav', 'mp3'}
+        if not '.' in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+
         result = AssessmentResult.query.get_or_404(result_id)
+        patient = Patient.query.get_or_404(patient_id)
         
-        # Use the tool's type instead of result's type
-        tool_type = result.tool.tool_type
+        if result.patient_id != patient.id:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+            
+        if result.status != 'draft':
+            return jsonify({'success': False, 'error': 'Cannot modify a completed assessment'}), 400
         
         # Create uploads directory if it doesn't exist
         upload_dir = os.path.join(current_app.root_path, 'uploads')
@@ -473,25 +482,41 @@ def upload_assessment_document(patient_id, result_id):
         filename = secure_filename(file.filename)
         filepath = os.path.join(upload_dir, filename)
         file.save(filepath)
+
+        # Create new document
+        document = Document(
+            title=f"Assessment Document - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            content="Uploaded for assessment",
+            user_id=current_user.id,
+            patient_id=patient.id
+        )
+
+        if filepath.lower().endswith(('.wav', '.mp3')):
+            document.audio_file = filename
+
+        db.session.add(document)
+        db.session.flush()  # Get document ID
         
         # Process file and extract assessment data
-        extracted_data = extract_assessment_data(filepath, tool_type)
+        extracted_data = extract_assessment_data(filepath, result.tool.tool_type)
+        
+        # Clear existing responses
+        for response in result.responses:
+            db.session.delete(response)
         
         # Update assessment with extracted data
         for question_id, value in extracted_data.items():
-            # Convert array responses to string format
-            if isinstance(value, list):
-                response_value = ', '.join(str(v) for v in value)
-            else:
-                response_value = str(value)
-                
             response = AssessmentResponse(
                 result_id=result.id,
                 question_id=question_id,
-                response_value=response_value
+                response_value=str(value)
             )
             db.session.add(response)
             
+        # Link document to assessment
+        result.document_id = document.id
+        result.entry_mode = 'document'
+        
         db.session.commit()
         return jsonify({'success': True})
         

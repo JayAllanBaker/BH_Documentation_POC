@@ -8,6 +8,7 @@ import wave
 import contextlib
 import speech_recognition as sr
 from pydub import AudioSegment
+from flask import current_app
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -57,68 +58,78 @@ def extract_text_from_audio(file_path: str) -> str:
         logger.error(f"Error extracting text from audio: {str(e)}")
         return ""
 
-def extract_assessment_data(file_path: str, assessment_tool: Any) -> Dict[int, str]:
-    """
-    Extract assessment data from document and map to assessment tool questions
-    Returns a dictionary mapping question IDs to response values
-    """
+def extract_prapare_data(text: str) -> Dict[int, str]:
+    """Extract PRAPARE assessment data from text"""
     try:
-        # Extract text content from document
-        text_content = extract_text_from_document(file_path)
-        if not text_content:
-            logger.error("No text content extracted from document")
-            return {}
-
-        # Prepare the prompt for analysis
-        questions_prompt = "\n".join([
-            f"Q{q.id}: {q.question_text}" 
-            for q in assessment_tool.questions
-        ])
-
-        system_prompt = """You are a medical assessment analyzer. Given a medical document and a set of assessment questions:
-1. Analyze the text for relevant information
-2. Map the information to the specific assessment questions
-3. For each question, provide the most appropriate response value based on the content
-4. If a question cannot be answered from the content, skip it"""
-
-        user_prompt = f"""Please analyze this medical document and provide responses for the following assessment questions:
-
-Document Content:
-{text_content}
-
-Assessment Questions:
-{questions_prompt}
-
-For each question, provide only the response value that best matches the options available for that question. Format your response as a JSON object where keys are question IDs (Q1, Q2, etc.) and values are the response values."""
-
-        # Get AI analysis
         client = openai.OpenAI()
+        
+        system_prompt = """You are a medical assessment analyzer specializing in PRAPARE assessments. 
+        The Protocol for Responding to and Assessing Patient Assets, Risks, and Experiences (PRAPARE) 
+        is a national effort to help health centers collect and apply data on social determinants 
+        of health. Analyze the given text and extract relevant information for each PRAPARE question."""
+
+        user_prompt = f"""Given this medical document, extract responses for PRAPARE assessment questions.
+        Focus on social determinants of health including:
+        - Hispanic/Latino status
+        - Race
+        - Seasonal/migrant work history
+        - Veteran status
+        - Preferred language
+        - Family size
+        - Housing situation
+        - Education level
+        - Employment status
+        - Insurance status
+        - Income level relative to poverty guidelines
+
+        Document text:
+        {text}
+
+        Return the responses in a JSON format where keys are question IDs (1-13) and values are 
+        the appropriate response values based on the PRAPARE assessment options."""
+
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            response_format={ "type": "json_object" },
+            response_format={"type": "json_object"},
             temperature=0.3
         )
 
-        # Process the response
         content = response.choices[0].message.content
         if isinstance(content, str):
-            try:
-                result = json.loads(content)
-                # Convert response to proper format
-                formatted_result = {}
-                for q_id, value in result.items():
-                    if q_id.startswith('Q'):
-                        question_id = int(q_id[1:])  # Remove 'Q' prefix
-                        formatted_result[question_id] = value
-                return formatted_result
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse OpenAI response: {e}")
-                return {}
+            result = json.loads(content)
+            return {int(k): v for k, v in result.items()}
         return {}
     except Exception as e:
-        logger.error(f"Error in assessment data extraction: {str(e)}")
+        logger.error(f"Error in PRAPARE data extraction: {str(e)}")
         return {}
+
+def extract_assessment_data(filepath: str, tool_type: str) -> Dict[int, str]:
+    """Extract assessment data from document based on tool type"""
+    try:
+        # Get transcription from audio or text content from document
+        text_content = extract_text_from_document(filepath)
+        if not text_content:
+            raise ValueError("No text content could be extracted from the document")
+
+        # Create document record
+        document = {
+            'title': os.path.basename(filepath),
+            'content': text_content,
+            'transcription': text_content if filepath.lower().endswith(('.wav', '.mp3')) else None
+        }
+
+        # Extract responses based on tool type
+        if tool_type.upper() == 'PRAPARE':
+            responses = extract_prapare_data(text_content)
+        else:
+            # Default extraction for other assessment types
+            responses = {}
+
+        return responses
+    except Exception as e:
+        logger.error(f'Error in assessment data extraction: {str(e)}')
+        raise
