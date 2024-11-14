@@ -199,6 +199,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadProgress = documentUploadForm.querySelector('.progress');
     const processingStatus = document.getElementById('processingStatus');
 
+    const patientId = {{ patient.id }};
+    const resultId = {{ result.id }};
+
     function updateFormVisibility(mode) {
         if (documentSection && assessmentForm) {
             documentSection.style.display = mode === 'document' ? 'block' : 'none';
@@ -228,34 +231,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            // Show progress
             uploadProgress.classList.remove('d-none');
             const progressBar = uploadProgress.querySelector('.progress-bar');
             progressBar.style.width = '0%';
 
-            // Upload file
-            const response = await fetch(`/patients/{{ patient.id }}/assessments/{{ result.id }}/upload`, {
+            const response = await fetch(`/patients/${patientId}/assessments/${resultId}/upload`, {
                 method: 'POST',
                 body: formData
             });
 
+            const result = await response.json();
+            
             if (!response.ok) {
-                throw new Error('Upload failed');
+                throw new Error(result.error || 'Upload failed');
             }
 
-            // Show processing status
-            uploadProgress.classList.add('d-none');
-            processingStatus.classList.remove('d-none');
-
-            const result = await response.json();
             if (result.success) {
                 window.location.reload();
             } else {
-                alert(result.error || 'An error occurred during processing');
+                throw new Error(result.error || 'Processing failed');
             }
         } catch (error) {
             console.error('Upload error:', error);
-            alert('An error occurred during upload');
+            alert(error.message || 'An error occurred during upload');
         } finally {
             uploadProgress.classList.add('d-none');
             processingStatus.classList.add('d-none');

@@ -342,62 +342,66 @@ def edit_assessment(patient_id, result_id):
 def patient_assessments(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     assessment_tools = AssessmentTool.query.filter_by(active=True).order_by(AssessmentTool.name).all()
-    return render_template('patients/assessments.html', patient=patient, assessment_tools=assessment_tools)
+    return render_template('patients/assessments.html', 
+                         patient=patient,
+                         assessment_tools=assessment_tools)
 
-@patients_bp.route('/assessments/all')
+@patients_bp.route('/assessments')
 @login_required
 def all_assessments():
     page = request.args.get('page', 1, type=int)
-    per_page = 20
-    
-    # Base query
     query = AssessmentResult.query
     
     # Apply filters
-    if patient_search := request.args.get('patient'):
+    patient_query = request.args.get('patient')
+    if patient_query:
         query = query.join(Patient).filter(
             db.or_(
-                Patient.family_name.ilike(f'%{patient_search}%'),
-                Patient.given_name.ilike(f'%{patient_search}%')
+                Patient.family_name.ilike(f'%{patient_query}%'),
+                Patient.given_name.ilike(f'%{patient_query}%')
             )
         )
-    
-    if tool_id := request.args.get('tool', type=int):
+        
+    tool_id = request.args.get('tool', type=int)
+    if tool_id:
         query = query.filter(AssessmentResult.tool_id == tool_id)
-    
-    if status := request.args.get('status'):
+        
+    status = request.args.get('status')
+    if status:
         query = query.filter(AssessmentResult.status == status)
-    
-    if date_from := request.args.get('date_from'):
+        
+    date_from = request.args.get('date_from')
+    if date_from:
         query = query.filter(AssessmentResult.assessment_date >= datetime.strptime(date_from, '%Y-%m-%d'))
-    
-    if date_to := request.args.get('date_to'):
+        
+    date_to = request.args.get('date_to')
+    if date_to:
         query = query.filter(AssessmentResult.assessment_date <= datetime.strptime(date_to, '%Y-%m-%d'))
-    
+        
     # Apply sorting
-    sort_field = request.args.get('sort', 'date')
-    sort_order = request.args.get('order', 'desc')
+    sort = request.args.get('sort')
+    order = request.args.get('order', 'asc')
     
-    if sort_field == 'date':
+    if sort == 'date':
         query = query.order_by(
-            AssessmentResult.assessment_date.desc() if sort_order == 'desc' 
+            AssessmentResult.assessment_date.desc() if order == 'desc' 
             else AssessmentResult.assessment_date.asc()
         )
-    elif sort_field == 'patient':
+    elif sort == 'patient':
         query = query.join(Patient).order_by(
-            Patient.family_name.desc() if sort_order == 'desc'
+            Patient.family_name.desc() if order == 'desc'
             else Patient.family_name.asc()
         )
-    elif sort_field == 'type':
+    elif sort == 'type':
         query = query.join(AssessmentTool).order_by(
-            AssessmentTool.name.desc() if sort_order == 'desc'
+            AssessmentTool.name.desc() if order == 'desc'
             else AssessmentTool.name.asc()
         )
+    else:
+        # Default sort by date descending
+        query = query.order_by(AssessmentResult.assessment_date.desc())
     
-    # Execute paginated query
-    assessments = query.paginate(page=page, per_page=per_page)
-    
-    # Get active assessment tools for dropdown
+    assessments = query.paginate(page=page, per_page=10)
     assessment_tools = AssessmentTool.query.filter_by(active=True).order_by(AssessmentTool.name).all()
     
     return render_template('patients/assessment_list.html',
@@ -414,7 +418,9 @@ def view_assessment(patient_id, result_id):
         flash('Access denied', 'danger')
         return redirect(url_for('patients.patient_assessments', patient_id=patient_id))
         
-    return render_template('patients/assessment_view.html', patient=patient, result=result)
+    return render_template('patients/assessment_view.html',
+                         patient=patient,
+                         result=result)
 
 @patients_bp.route('/patients/<int:patient_id>/assessments/<int:result_id>/delete', methods=['POST'])
 @login_required
@@ -429,12 +435,12 @@ def delete_assessment(patient_id, result_id):
         
     if result.status != 'draft':
         flash('Cannot delete a completed assessment', 'danger')
-        return redirect(url_for('patients.patient_assessments', patient_id=patient_id))
-    
+        return redirect(url_for('patients.view_assessment', patient_id=patient_id, result_id=result_id))
+        
     try:
         db.session.delete(result)
         db.session.commit()
-        flash('Assessment deleted', 'success')
+        flash('Assessment deleted successfully', 'success')
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'Error deleting assessment: {str(e)}')
