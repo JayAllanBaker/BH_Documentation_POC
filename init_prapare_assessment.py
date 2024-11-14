@@ -5,15 +5,14 @@ from datetime import datetime
 def init_prapare_assessment():
     with app.app_context():  # Add application context
         # Create PRAPARE assessment tool
-        prapare = AssessmentTool(
-            name="PRAPARE Assessment",
-            description="Protocol for Responding to and Assessing Patient Assets, Risks, and Experiences",
-            version="September 2, 2016",
-            tool_type="PRAPARE",
-            active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        prapare = AssessmentTool()
+        prapare.name = "PRAPARE Assessment"
+        prapare.description = "Protocol for Responding to and Assessing Patient Assets, Risks, and Experiences"
+        prapare.version = "September 2, 2016"
+        prapare.tool_type = "PRAPARE"
+        prapare.active = True
+        prapare.created_at = datetime.utcnow()
+        prapare.updated_at = datetime.utcnow()
         
         db.session.add(prapare)
         db.session.flush()  # Get the ID
@@ -116,7 +115,7 @@ def init_prapare_assessment():
                 "order": 9,
                 "question_text": "What address do you live at?",
                 "question_type": "text",
-                "required": True,
+                "required": False,  # Changed from True to False
                 "help_text": "Please provide your full address including Street, City, State, and Zip code"
             },
             {
@@ -178,17 +177,16 @@ def init_prapare_assessment():
         
         # Add all questions
         for q in questions:
-            question = AssessmentQuestion(
-                tool_id=prapare.id,
-                question_text=q["question_text"],
-                order=q["order"],
-                question_type=q["question_type"],
-                required=q["required"],
-                help_text=q.get("help_text"),
-                options=q.get("options"),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
+            question = AssessmentQuestion()
+            question.tool_id = prapare.id
+            question.question_text = q["question_text"]
+            question.order = q["order"]
+            question.question_type = q["question_type"]
+            question.required = q["required"]
+            question.help_text = q.get("help_text")
+            question.options = q.get("options")
+            question.created_at = datetime.utcnow()
+            question.updated_at = datetime.utcnow()
             db.session.add(question)
         
         try:

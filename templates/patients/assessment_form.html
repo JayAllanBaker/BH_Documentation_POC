@@ -125,6 +125,16 @@
                                        {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == 'no' }}>
                                 <label class="btn btn-outline-danger" for="q{{ question.id }}_no">No</label>
                             </div>
+
+                            {% elif question.question_type == 'text' %}
+                            <input type="text" class="form-control" name="response_{{ question.id }}"
+                                   value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
+                                   {{ 'required' if question.required }}>
+
+                            {% elif question.question_type == 'number' %}
+                            <input type="number" class="form-control" name="response_{{ question.id }}"
+                                   value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
+                                   min="0" {{ 'required' if question.required }}>
                             {% endif %}
                         </div>
                         {% endfor %}
