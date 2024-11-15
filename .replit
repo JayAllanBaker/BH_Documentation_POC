@@ -43,6 +43,10 @@ args = "Init Assessment Tools"
 task = "workflow.run"
 args = "Init PRAPARE"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Create Admin"
+
 [[workflows.workflow]]
 name = "Flask Server"
 author = "agent"
@@ -155,6 +159,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 init_prapare_assessment.py"
+
+[[workflows.workflow]]
+name = "Create Admin"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 create_admin.py"
 
 [deployment]
 run = ["sh", "-c", "python3 app.py"]
