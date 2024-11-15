@@ -97,23 +97,38 @@
                                     {% endif %}
 
                                     {% if question.question_type == 'multiple_choice' %}
-                                    <div class="{% if question.order == 2 %}d-flex flex-column gap-2{% else %}btn-group w-100{% endif %}" role="group">
-                                        {% for option in question.options %}
-                                        <div class="{% if question.order == 2 %}form-check{% endif %}">
-                                            <input type="{{ 'checkbox' if question.order == 2 else 'radio' }}" 
-                                                   class="{{ 'form-check-input' if question.order == 2 else 'btn-check' }}" 
-                                                   name="response_{{ question.id }}{% if question.order == 2 %}[]{% endif %}" 
+                                        {% if question.order == 2 %}
+                                        <div class="d-flex flex-column gap-2">
+                                            {% for option in question.options %}
+                                            <div class="form-check">
+                                                <input type="checkbox" 
+                                                       class="form-check-input" 
+                                                       name="response_{{ question.id }}[]" 
+                                                       id="q{{ question.id }}_{{ loop.index }}" 
+                                                       value="{{ option.value }}"
+                                                       {% if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and option.value in (result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value.split(',') if result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value else []) %}checked{% endif %}>
+                                                <label class="form-check-label" for="q{{ question.id }}_{{ loop.index }}">
+                                                    {{ option.text }}
+                                                </label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        <div class="btn-group w-100" role="group">
+                                            {% for option in question.options %}
+                                            <input type="radio" 
+                                                   class="btn-check" 
+                                                   name="response_{{ question.id }}" 
                                                    id="q{{ question.id }}_{{ loop.index }}" 
                                                    value="{{ option.value }}"
                                                    {{ 'required' if question.required and loop.first }}
                                                    {{ 'checked' if result.responses and result.responses|selectattr('question_id', 'equalto', question.id)|first and result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value == option.value }}>
-                                            <label class="{{ 'form-check-label' if question.order == 2 else 'btn btn-outline-primary' }}" 
-                                                   for="q{{ question.id }}_{{ loop.index }}">
+                                            <label class="btn btn-outline-primary" for="q{{ question.id }}_{{ loop.index }}">
                                                 {{ option.text }}
                                             </label>
+                                            {% endfor %}
                                         </div>
-                                        {% endfor %}
-                                    </div>
+                                        {% endif %}
                                     {% elif question.question_type == 'text' %}
                                     <input type="text" class="form-control" name="response_{{ question.id }}"
                                            value="{{ result.responses|selectattr('question_id', 'equalto', question.id)|first.response_value if result.responses else '' }}"
@@ -264,10 +279,6 @@
 }
 </style>
 
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const entryModeInputs = document.querySelectorAll('input[name="entry_mode"]');
@@ -285,90 +296,61 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Initialize visibility based on current mode
-    const currentMode = document.querySelector('input[name="entry_mode"]:checked')?.value || 'manual';
-    updateFormVisibility(currentMode);
+    updateFormVisibility(document.querySelector('input[name="entry_mode"]:checked').value);
 
-    // Add event listeners for radio buttons
+    // Handle mode toggle
     entryModeInputs.forEach(input => {
-        input.addEventListener('change', (e) => updateFormVisibility(e.target.value));
+        input.addEventListener('change', (e) => {
+            updateFormVisibility(e.target.value);
+        });
     });
 
     // Handle document upload
-    documentUploadForm.addEventListener('submit', async function(e) {
+    documentUploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        const formData = new FormData(this);
-        const fileInput = this.querySelector('input[type="file"]');
+        const formData = new FormData(documentUploadForm);
         
-        if (!fileInput.files.length) {
-            alert('Please select a file to upload');
-            return;
-        }
-
         try {
             uploadProgress.classList.remove('d-none');
             processingStatus.classList.remove('d-none');
-            processingStatus.textContent = 'Uploading document...';
             
-            const progressBar = uploadProgress.querySelector('.progress-bar');
-            progressBar.style.width = '0%';
-            progressBar.style.width = '50%';  // Show upload progress
-
-            const response = await fetch(`/patients/{{ patient.id }}/assessments/{{ result.id }}/upload`, {
+            const response = await fetch('/upload-assessment-document', {
                 method: 'POST',
                 body: formData
             });
-
-            const result = await response.json();
             
             if (!response.ok) {
-                throw new Error(result.error || 'Upload failed');
+                throw new Error('Upload failed');
             }
-
+            
+            const result = await response.json();
             if (result.success) {
-                processingStatus.textContent = 'Processing complete!';
-                progressBar.style.width = '100%';
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                throw new Error(result.error || 'Processing failed');
+                location.reload();
             }
         } catch (error) {
             console.error('Upload error:', error);
-            alert(error.message || 'An error occurred during upload');
+            alert('Error uploading document. Please try again.');
         } finally {
-            setTimeout(() => {
-                uploadProgress.classList.add('d-none');
-                processingStatus.classList.add('d-none');
-            }, 1000);
+            uploadProgress.classList.add('d-none');
+            processingStatus.classList.add('d-none');
         }
     });
-
-    // Handle form validation for race checkboxes (question 2)
-    const raceCheckboxes = document.querySelectorAll('input[name^="response_"][type="checkbox"]');
-    if (raceCheckboxes.length > 0) {
-        const form = document.getElementById('assessmentForm');
-        form.addEventListener('submit', function(e) {
-            const checkedRaces = Array.from(raceCheckboxes).some(cb => cb.checked);
-            const noAnswerChecked = Array.from(raceCheckboxes).find(cb => cb.value === 'no_answer')?.checked;
-            
-            if (!checkedRaces && !noAnswerChecked) {
-                e.preventDefault();
-                alert('Please select at least one race or choose "I choose not to answer this question"');
-            }
-        });
-    }
 });
 
 function removeDocument() {
-    if (confirm('Are you sure you want to remove the document and return to manual entry?')) {
-        fetch(`/patients/{{ patient.id }}/assessments/{{ result.id }}/remove-document`, {
-            method: 'POST'
+    if (confirm('Are you sure you want to remove this document?')) {
+        fetch('/remove-assessment-document', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         }).then(response => {
             if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('Failed to remove document');
+                location.reload();
             }
+        }).catch(error => {
+            console.error('Error removing document:', error);
+            alert('Error removing document. Please try again.');
         });
     }
 }
