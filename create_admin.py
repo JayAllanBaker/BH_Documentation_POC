@@ -3,11 +3,16 @@ from app import app
 
 with app.app_context():
     # Check if admin user exists
-    if not User.query.filter_by(username="admin").first():
+    admin = User.query.filter_by(username="admin").first()
+    if not admin:
         admin = User(username="admin", role="admin")
         admin.set_password("password!")
         db.session.add(admin)
         db.session.commit()
         print("Admin user created successfully")
     else:
-        print("Admin user already exists")
+        # Update existing admin user
+        admin.role = "admin"
+        admin.set_password("password!")
+        db.session.commit()
+        print("Admin user updated successfully")
