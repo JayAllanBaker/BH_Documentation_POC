@@ -97,7 +97,7 @@
                                     {% endif %}
 
                                     {% if question.question_type == 'multiple_choice' %}
-                                        {% if question.order == 2 %}
+                                        {% if question.order == 2 %}  {# Race question #}
                                         <div class="d-flex flex-column gap-2">
                                             {% for option in question.options %}
                                             <div class="form-check">
