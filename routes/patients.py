@@ -262,24 +262,38 @@ def edit_assessment(patient_id, result_id):
                     # Handle multiple checkbox values
                     values = request.form.getlist(f'response_{question.id}[]')
                     if values:
-                        response = AssessmentResponse(
-                            result_id=result.id,
-                            question_id=question.id,
-                            response_value=','.join(values)
-                        )
+                        response = AssessmentResponse()
+                        response.result_id = result.id
+                        response.question_id = question.id
+                        response.response_value = ','.join(values)
                         db.session.add(response)
                 else:
                     # Handle other question types
                     value = request.form.get(f'response_{question.id}')
                     if value or question.required:
-                        response = AssessmentResponse(
-                            result_id=result.id,
-                            question_id=question.id,
-                            response_value=value if value else ''
-                        )
+                        response = AssessmentResponse()
+                        response.result_id = result.id
+                        response.question_id = question.id
+                        response.response_value = value if value else ''
                         db.session.add(response)
             
             result.clinical_notes = request.form.get('clinical_notes')
+            
+            # Calculate total score based on tool type
+            total_score = 0
+            if result.tool.tool_type == 'COWS':
+                for response in result.responses:
+                    if response.response_value and response.response_value.isdigit():
+                        total_score += int(response.response_value)
+            elif result.tool.tool_type == 'PRAPARE':
+                for response in result.responses:
+                    if hasattr(response.question, 'options'):
+                        for option in response.question.options:
+                            if option['value'] == response.response_value:
+                                total_score += option.get('score', 0)
+                                break
+            
+            result.total_score = total_score
             
             # Handle action
             action = request.form.get('action')
