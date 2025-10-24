@@ -97,16 +97,15 @@ if __name__ == '__main__':
             # Test database connection
             db.engine.connect()
             logger.info("Database connection test successful")
-            db.create_all()
-            logger.info("Database tables created successfully")
             
             # Log all users and their roles for debugging
             users = User.query.all()
-            logger.debug("Current users in database:")
+            logger.debug(f"Current users in database: {len(users)} user(s)")
             for user in users:
                 logger.debug(f"Username: {user.username}, Role: {user.role}")
                 
         except Exception as e:
             logger.error(f"Database connection test failed: {str(e)}")
+            logger.error("Make sure migrations have been run: flask db upgrade")
             raise
     app.run(host='0.0.0.0', port=5000)

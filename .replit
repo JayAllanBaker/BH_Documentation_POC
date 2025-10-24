@@ -21,10 +21,6 @@ args = "Create Test User"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Flask Migration"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Reset Database"
 
 [[workflows.workflow.tasks]]
@@ -46,10 +42,6 @@ args = "Init PRAPARE"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "Create Admin"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Init Assessment"
 
 [[workflows.workflow]]
 name = "Flask Server"
@@ -79,20 +71,6 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 create_test_user.py"
-
-[[workflows.workflow]]
-name = "Flask Migration"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "export FLASK_APP=app.py && flask db migrate -m 'Add document reference to assessment result' && flask db upgrade"
 
 [[workflows.workflow]]
 name = "Reset Database"
@@ -178,20 +156,6 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "python3 create_admin.py"
 
-[[workflows.workflow]]
-name = "Init Assessment"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 init_prapare_assessment.py"
-
 [deployment]
 run = ["sh", "-c", "python3 app.py"]
 deploymentTarget = "cloudrun"
@@ -199,6 +163,10 @@ deploymentTarget = "cloudrun"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 40439
+externalPort = 3000
 
 [agent]
 expertMode = true
